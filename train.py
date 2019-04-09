@@ -37,7 +37,7 @@ def train_model(model, optimizer, loader, num_epochs=100, use_cuda=True):
                 loss.backward()
                 optimizer.step()
 
-                if (global_step%100) == 1:
+                if (global_step%200) == 1:
                     if loss < best_loss:
                         best_loss = loss
                         best_params = [p.detach().cpu() for p in model.parameters()]
@@ -54,7 +54,7 @@ def train_model(model, optimizer, loader, num_epochs=100, use_cuda=True):
 
     model.to('cpu')
     model.eval()
-    model.save_to_drive('vae_trained')
+    model.save_to_drive('')
 
 if __name__ == '__main__':
     train_dataset = ModelnetDataset(transform=RandomRotation())
@@ -66,6 +66,6 @@ if __name__ == '__main__':
                             shuffle=True, num_workers=1)
 
     model = VAE(ENCODER_HIDDEN, [LATENT, DECODER_HIDDEN, 3*OUT_POINTS])
-    optimizer = Adam(model.parameters(), lr=1e-3)
+    optimizer = Adam(model.parameters(), lr=5e-4)
 
-    train_model(model, optimizer, train_loader, use_cuda=False)
+    train_model(model, optimizer, train_loader, num_epochs=200)

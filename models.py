@@ -4,13 +4,10 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
-import httpimport
-with httpimport.github_repo('fxia22', 'pointnet.pytorch',
-                            module='pointnet', branch='master'):
-    import pointnet.model
+from pointnet import PointNetfeat
 
 
-MODELS_DIR = 'models'
+MODELS_DIR = 'trained'
 MODELS_EXT = '.dms'
 MODEL_DEFAULT_NAME = 'trained'
 
@@ -34,7 +31,7 @@ def elbo_loss(x, reconstruction, z_mean, z_log_sigma2, beta=1.0):
 class PointnetEncoder(nn.Module):
     def __init__(self, hidden, latent):
         super(PointnetEncoder, self).__init__()
-        self.model = pointnet.model.PointNetfeat()
+        self.model = PointNetfeat()
         self.fc1 = nn.Linear(1024, hidden)
         self.fc2 = nn.Linear(hidden, 2*latent)
 
