@@ -7,6 +7,11 @@ import torch.nn.functional as F
 from pointnet import PointNetfeat
 
 
+LATENT = 50
+ENCODER_HIDDEN = 512
+DECODER_HIDDEN = 256
+OUT_POINTS = 2048
+
 MODELS_DIR = 'trained'
 MODELS_EXT = '.dms'
 MODEL_DEFAULT_NAME = 'trained'
@@ -78,8 +83,11 @@ class VAE(torch.nn.Module):
         return reconstruction, z_mean, z_log_sigma2
 
     def save_to_drive(self, name=MODEL_DEFAULT_NAME):
-        torch.save(self, os.path.join(MODELS_DIR, name+MODELS_EXT))
+        torch.save(self.state_dict(), os.path.join(MODELS_DIR, name+MODELS_EXT))
 
     @staticmethod
-    def load_from_drive(name=MODEL_DEFAULT_NAME):
-        return torch.load(os.path.join(MODELS_DIR, name+MODELS_EXT))
+    def load_from_drive(hidden, decoder_dims, name=MODEL_DEFAULT_NAME, ):
+        model = VAE(hidden, decoder_dims)
+        model.load_state_dict(torch.load(os.path.join(MODELS_DIR, name+MODELS_EXT)))
+        model.eval()
+        return model

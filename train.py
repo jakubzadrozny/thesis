@@ -4,14 +4,10 @@ from torch.utils.data import DataLoader
 from datasets import FromNpDataset, ModelnetDataset
 from transforms import RandomRotation
 from models import VAE, cd, elbo_loss
+import models
 
 
 INF = 1000 * 1000 * 1000
-
-LATENT = 50
-ENCODER_HIDDEN = 512
-DECODER_HIDDEN = 256
-OUT_POINTS = 2048
 
 def train_model(model, optimizer, loader, num_epochs=100, use_cuda=True):
     model.train()
@@ -38,23 +34,15 @@ def train_model(model, optimizer, loader, num_epochs=100, use_cuda=True):
                 optimizer.step()
 
                 if (global_step%200) == 1:
-                    if loss < best_loss:
-                        best_loss = loss
-                        best_params = [p.detach().cpu() for p in model.parameters()]
                     print("global step: %d (epoch: %d, step: %d), loss: %f %s" %
                           (global_step, epoch, inum, loss.item(), stats))
 
     except KeyboardInterrupt:
         pass
 
-    if best_params is not None:
-        print("\nLoading best params")
-        model.parameters = best_params
-        print("Params loaded")
-
     model.to('cpu')
     model.eval()
-    model.save_to_drive('')
+    model.save_to_drive()
 
 if __name__ == '__main__':
     train_dataset = ModelnetDataset(transform=RandomRotation())
@@ -65,7 +53,7 @@ if __name__ == '__main__':
     test_loader = DataLoader(test_dataset, batch_size=24,
                             shuffle=True, num_workers=1)
 
-    model = VAE(ENCODER_HIDDEN, [LATENT, DECODER_HIDDEN, 3*OUT_POINTS])
+    model = VAE(models.ENCODER_HIDDEN, [models.LATENT, models.DECODER_HIDDEN, 3*models.OUT_POINTS])
     optimizer = Adam(model.parameters(), lr=5e-4)
 
-    train_model(model, optimizer, train_loader, num_epochs=200)
+    train_model(model, optimizer, train_loader, num_epochs=200, use_cuda=True)
