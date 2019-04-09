@@ -3,13 +3,13 @@ from torch.utils.data import DataLoader
 
 from datasets import FromNpDataset, ModelnetDataset
 from transforms import RandomRotation
-from models import VAE, cd, elbo_loss
-import models
+from models import VAE, cd, elbo_loss, ENCODER_HIDDEN, DECODER_LAYERS
 
 
 INF = 1000 * 1000 * 1000
 
 def train_model(model, optimizer, loader, num_epochs=100, use_cuda=True):
+    print('Training your model!\n')
     model.train()
     if use_cuda:
         model.to('cuda')
@@ -28,7 +28,7 @@ def train_model(model, optimizer, loader, num_epochs=100, use_cuda=True):
                 optimizer.zero_grad()
 
                 reconstruction, mu, sigma2 = model(batch)
-                loss, stats = elbo_loss(batch, reconstruction, mu, sigma2, beta=0.0)
+                loss, stats = elbo_loss(batch, reconstruction, mu, sigma2, beta=0.01)
 
                 loss.backward()
                 optimizer.step()
@@ -42,7 +42,9 @@ def train_model(model, optimizer, loader, num_epochs=100, use_cuda=True):
 
     model.to('cpu')
     model.eval()
+    print('Saving model to drive...', end='')
     model.save_to_drive()
+    print('done.')
 
 if __name__ == '__main__':
     train_dataset = ModelnetDataset(transform=RandomRotation())
@@ -53,7 +55,7 @@ if __name__ == '__main__':
     test_loader = DataLoader(test_dataset, batch_size=24,
                             shuffle=True, num_workers=1)
 
-    model = VAE(models.ENCODER_HIDDEN, [models.LATENT, models.DECODER_HIDDEN, 3*models.OUT_POINTS])
-    optimizer = Adam(model.parameters(), lr=5e-4)
+    model = VAE(ENCODER_HIDDEN, DECODER_LAYERS)
+    optimizer = Adam(model.parameters(), lr=1e-4)
 
-    train_model(model, optimizer, train_loader, num_epochs=200, use_cuda=True)
+    train_model(model, optimizer, train_loader, num_epochs=300, use_cuda=True)

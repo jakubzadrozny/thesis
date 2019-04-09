@@ -7,10 +7,10 @@ import torch.nn.functional as F
 from pointnet import PointNetfeat
 
 
-LATENT = 50
-ENCODER_HIDDEN = 512
-DECODER_HIDDEN = 256
+LATENT = 200
+ENCODER_HIDDEN = 1024
 OUT_POINTS = 2048
+DECODER_LAYERS = [LATENT, 512, 1024, 3*OUT_POINTS]
 
 MODELS_DIR = 'trained'
 MODELS_EXT = '.dms'
