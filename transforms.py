@@ -7,7 +7,7 @@ class RandomRotation(object):
             [1, 0, 0],
             [0, np.cos(a), -np.sin(a)],
             [0, np.sin(a), np.cos(a)]
-        ])
+        ], dtype=np.float32)
 
     @staticmethod
     def gen_y_matrix(a):
@@ -15,7 +15,7 @@ class RandomRotation(object):
             [np.cos(a), 0, np.sin(a)],
             [0, 1, 0],
             [-np.sin(a), 0, np.cos(a)]
-        ])
+        ], dtype=np.float32)
 
     @staticmethod
     def gen_z_matrix(a):
@@ -23,7 +23,7 @@ class RandomRotation(object):
             [np.cos(a), -np.sin(a), 0],
             [np.sin(a), np.cos(a), 0],
             [0, 0, 1]
-        ])
+        ], dtype=np.float32)
 
     @staticmethod
     def get_matrix(a, b, c):
@@ -36,7 +36,7 @@ class RandomRotation(object):
         self.scale = scale
 
     def __call__(self, sample):
-        a, b, c = np.astype(self.scale * np.pi * np.abs(np.random.normal(size=3))), dtype='float')
+        a, b, c = np.array(self.scale * np.pi * np.abs(np.random.normal(size=3)))
         R = RandomRotation.get_matrix(a, b, c)
         res = np.dot(R, sample)
         return res

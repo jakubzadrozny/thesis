@@ -1,27 +1,32 @@
+from torch.optim import Adam
 from torch.utils.data import DataLoader
 
 from datasets import FromNpDataset, ModelnetDataset
 from transforms import RandomRotation
-from model import VAE, cd, elbo_loss
+from models import VAE, cd, elbo_loss
 
+
+INF = 1000 * 1000 * 1000
 
 LATENT = 50
 ENCODER_HIDDEN = 512
 DECODER_HIDDEN = 256
 OUT_POINTS = 2048
 
-def train_model(model, optimizer, loader, num_epochs=100):
+def train_model(model, optimizer, loader, num_epochs=100, use_cuda=True):
     model.train()
-    model.to('cuda')
+    if use_cuda:
+        model.to('cuda')
 
     global_step = 0
     best_params = None
-    best_loss = np.inf
+    best_loss = INF
 
     try:
         for epoch in range(num_epochs):
             for inum, batch in enumerate(loader):
-                batch = batch.cuda()
+                if use_cuda:
+                    batch = batch.cuda()
 
                 global_step += 1
                 optimizer.zero_grad()
@@ -61,6 +66,6 @@ if __name__ == '__main__':
                             shuffle=True, num_workers=1)
 
     model = VAE(ENCODER_HIDDEN, [LATENT, DECODER_HIDDEN, 3*OUT_POINTS])
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    optimizer = Adam(model.parameters(), lr=1e-3)
 
-    train_model(model, optimizer, train_loader)
+    train_model(model, optimizer, train_loader, use_cuda=False)

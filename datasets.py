@@ -1,6 +1,7 @@
 import numpy as np
 import h5py
 import gdown
+import os.path
 from os import listdir
 
 import torch
@@ -23,7 +24,8 @@ class FromNpDataset(Dataset):
         sample = self.data[idx]
         if self.transform:
             sample = self.transform(sample)
-        return Variable(torch.from_numpy(sample))
+        res = Variable(torch.from_numpy(sample))
+        return res
 
 class ModelnetDataset(FromNpDataset):
 
@@ -36,7 +38,7 @@ class ModelnetDataset(FromNpDataset):
     ]
 
     def __init__(self, transform=None):
-        for idx, url in enumerate(data_urls):
+        for idx, url in enumerate(ModelnetDataset.DATA_URLS):
             file_path = os.path.join(DATA_DIR, DATA_FILE_BASE+str(idx)+DATA_FILE_EXT)
             if not os.path.exists(file_path):
                 gdown.download(url, file_path, quiet=False)
@@ -49,6 +51,6 @@ class ModelnetDataset(FromNpDataset):
             hf = h5py.File(os.path.join(DATA_DIR, f), 'r')
             data_list.append(hf.get('data'))
 
-        data = np.transpose(np.concatenate(train_list, axis=0), (0, 2, 1))
+        data = np.transpose(np.concatenate(data_list, axis=0), (0, 2, 1))
 
-        super(self, data, trasnform=transform)
+        super().__init__(data, transform=transform)
