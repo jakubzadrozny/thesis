@@ -28,7 +28,7 @@ def train_model(model, optimizer, loader, num_epochs=100, use_cuda=True):
                 optimizer.zero_grad()
 
                 reconstruction, mu, sigma2 = model(batch)
-                loss, stats = elbo_loss(batch, reconstruction, mu, sigma2, beta=0.01)
+                loss, stats = elbo_loss(batch, reconstruction, mu, sigma2, beta=0.001)
 
                 loss.backward()
                 optimizer.step()
@@ -58,4 +58,4 @@ if __name__ == '__main__':
     model = VAE(ENCODER_HIDDEN, DECODER_LAYERS)
     optimizer = Adam(model.parameters(), lr=1e-4)
 
-    train_model(model, optimizer, train_loader, num_epochs=300, use_cuda=True)
+    train_model(model, optimizer, train_loader, num_epochs=400, use_cuda=True)
