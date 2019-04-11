@@ -28,7 +28,7 @@ def train_model(model, optimizer, loader, num_epochs=100, use_cuda=True):
                 optimizer.zero_grad()
 
                 reconstruction, mu, sigma2 = model(batch)
-                loss, stats = elbo_loss(batch, reconstruction, mu, sigma2, beta=0.001)
+                loss, stats = elbo_loss(batch, reconstruction, mu, sigma2, beta=0.0)
 
                 loss.backward()
                 optimizer.step()
@@ -47,7 +47,7 @@ def train_model(model, optimizer, loader, num_epochs=100, use_cuda=True):
     print('done.')
 
 if __name__ == '__main__':
-    train_dataset = ModelnetDataset(transform=RandomRotation())
+    train_dataset = ModelnetDataset(transform=None)
     test_dataset = ModelnetDataset(transform=None)
 
     train_loader = DataLoader(train_dataset, batch_size=24,
