@@ -1,5 +1,14 @@
 import numpy as np
 
+class GaussianNoise(object):
+    def __init__(self, std=1.0):
+        self.std = std
+
+    def __call__(self, sample):
+        dims = sample.shape
+        noise = self.std * np.randn(dims)
+        return sample + noise
+
 class RandomRotation(object):
     @staticmethod
     def gen_x_matrix(a):
@@ -40,3 +49,12 @@ class RandomRotation(object):
         R = RandomRotation.get_matrix(a, b, c)
         res = np.dot(R, sample)
         return res
+
+class Compose(object):
+    def __init__(self, transforms):
+        self.transforms = transforms
+
+    def __call__(self, sample):
+        for t in self.transforms:
+            sample = t(sample)
+        return sample

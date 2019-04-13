@@ -56,6 +56,6 @@ if __name__ == '__main__':
                             shuffle=True, num_workers=1)
 
     model = VAE(ENCODER_HIDDEN, DECODER_LAYERS)
-    optimizer = Adam(model.parameters(), lr=1e-4)
+    optimizer = Adam(model.parameters(), lr=2e-4)
 
-    train_model(model, optimizer, train_loader, num_epochs=400, use_cuda=True)
+    train_model(model, optimizer, train_loader, num_epochs=500, use_cuda=True)
