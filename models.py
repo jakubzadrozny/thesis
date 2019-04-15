@@ -96,7 +96,7 @@ class VAE(torch.nn.Module):
         torch.save(self.state_dict(), os.path.join(MODELS_DIR, name+MODELS_EXT))
 
     @staticmethod
-    def load_from_drive(hidden, decoder_dims, name=MODEL_DEFAULT_NAME, ):
+    def load_from_drive(hidden, decoder_dims, name=MODEL_DEFAULT_NAME):
         model = VAE(hidden, decoder_dims)
         model.load_state_dict(torch.load(os.path.join(MODELS_DIR, name+MODELS_EXT)))
         model.eval()
