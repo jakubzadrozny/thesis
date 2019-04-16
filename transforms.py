@@ -5,9 +5,7 @@ class GaussianNoise(object):
         self.std = std
 
     def __call__(self, sample):
-        dims = sample.shape
-        noise = self.std * np.randn(dims)
-        return sample + noise
+        return sample + np.random.normal(scale=self.std, size=sample.shape)
 
 class RandomRotation(object):
     @staticmethod
@@ -45,7 +43,7 @@ class RandomRotation(object):
         self.scale = scale
 
     def __call__(self, sample):
-        a, b, c = np.array(self.scale * np.pi * np.abs(np.random.normal(size=3)))
+        a, b, c = np.abs(np.random.normal(scale=self.scale*np.pi, size=3))
         R = RandomRotation.get_matrix(a, b, c)
         res = np.dot(R, sample)
         return res
