@@ -28,7 +28,7 @@ def train_model(model, optimizer, loader, num_epochs=100, use_cuda=True):
                 optimizer.zero_grad()
 
                 reconstruction, mu, sigma2 = model(batch)
-                loss, stats = elbo_loss(batch, reconstruction, mu, sigma2, beta=0.0)
+                loss, stats = elbo_loss(batch, reconstruction, mu, sigma2, beta=0.1)
 
                 loss.backward()
                 optimizer.step()
@@ -47,6 +47,10 @@ def train_model(model, optimizer, loader, num_epochs=100, use_cuda=True):
     print('done.')
 
 if __name__ == '__main__':
+    t = transforms.Compose([
+        transforms.RandomRotation(0.02),
+        transforms.GaussianNoise(0.02),
+    ])
     train_dataset = ModelnetDataset(transform=None)
     test_dataset = ModelnetDataset(transform=None)
 
@@ -56,6 +60,6 @@ if __name__ == '__main__':
                             shuffle=True, num_workers=1)
 
     model = VAE(ENCODER_HIDDEN, DECODER_LAYERS)
-    optimizer = Adam(model.parameters(), lr=2e-4)
+    optimizer = Adam(model.parameters(), lr=5e-4)
 
     train_model(model, optimizer, train_loader, num_epochs=500, use_cuda=True)
