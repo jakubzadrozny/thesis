@@ -2,9 +2,8 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 
 from datasets import FromNpDataset, ModelnetDataset
-from transforms import RandomRotation
 from models import VAE, cd, elbo_loss, ENCODER_HIDDEN, DECODER_LAYERS
-
+import transforms
 
 INF = 1000 * 1000 * 1000
 
