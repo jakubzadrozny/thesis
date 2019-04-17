@@ -2,7 +2,7 @@ import numpy as np
 import h5py
 import gdown
 import os.path
-from os import listdir
+from os import listdir, mkdir
 
 import torch
 from torch.autograd import Variable
@@ -38,6 +38,9 @@ class ModelnetDataset(FromNpDataset):
     ]
 
     def __init__(self, transform=None):
+        if not os.path.isdir(DATA_DIR):
+            os.mkdir(DATA_DIR)
+
         for idx, url in enumerate(ModelnetDataset.DATA_URLS):
             file_path = os.path.join(DATA_DIR, DATA_FILE_BASE+str(idx)+DATA_FILE_EXT)
             if not os.path.exists(file_path):
