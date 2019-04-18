@@ -5,7 +5,7 @@ class GaussianNoise(object):
         self.std = std
 
     def __call__(self, sample):
-        return sample + np.random.normal(scale=self.std, size=sample.shape)
+        return sample + np.random.normal(scale=self.std, size=sample.shape).astype(np.float32)
 
 class RandomRotation(object):
     @staticmethod

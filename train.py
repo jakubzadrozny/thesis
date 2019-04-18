@@ -47,7 +47,7 @@ def train_model(model, optimizer, loader, beta=1.0, num_epochs=100, use_cuda=Tru
 
 if __name__ == '__main__':
     t = transforms.Compose([
-        transforms.RandomRotation(0.01),
+        transforms.RandomRotation(0.02),
         transforms.GaussianNoise(0.01),
     ])
     train_dataset = ModelnetDataset(transform=t)
@@ -56,6 +56,6 @@ if __name__ == '__main__':
                             shuffle=True, num_workers=4)
 
     model = VAE(ENCODER_HIDDEN, DECODER_LAYERS)
-    optimizer = Adam(model.parameters(), lr=1e-4)
+    optimizer = Adam(model.parameters(), lr=2e-4)
 
-    train_model(model, optimizer, train_loader, num_epochs=600, use_cuda=True)
+    train_model(model, optimizer, train_loader, num_epochs=1500, use_cuda=True)
