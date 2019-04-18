@@ -7,7 +7,7 @@ import transforms
 
 INF = 1000 * 1000 * 1000
 
-def train_model(model, optimizer, loader, num_epochs=100, use_cuda=True):
+def train_model(model, optimizer, loader, beta=1.0, num_epochs=100, use_cuda=True):
     print('Training your model!\n')
     model.train()
     if use_cuda:
@@ -27,7 +27,7 @@ def train_model(model, optimizer, loader, num_epochs=100, use_cuda=True):
                 optimizer.zero_grad()
 
                 reconstruction, mu, sigma2 = model(batch)
-                loss, stats = elbo_loss(batch, reconstruction, mu, sigma2, beta=0.1)
+                loss, stats = elbo_loss(batch, reconstruction, mu, sigma2, beta=beta)
 
                 loss.backward()
                 optimizer.step()
@@ -50,15 +50,12 @@ if __name__ == '__main__':
         transforms.RandomRotation(0.01),
         transforms.GaussianNoise(0.01),
     ])
-    train_dataset = ModelnetDataset(transform=None)
-    test_dataset = ModelnetDataset(transform=None)
+    train_dataset = ModelnetDataset(transform=t)
 
     train_loader = DataLoader(train_dataset, batch_size=24,
                             shuffle=True, num_workers=4)
-    test_loader = DataLoader(test_dataset, batch_size=24,
-                            shuffle=True, num_workers=1)
 
     model = VAE(ENCODER_HIDDEN, DECODER_LAYERS)
-    optimizer = Adam(model.parameters(), lr=2e-4)
+    optimizer = Adam(model.parameters(), lr=1e-4)
 
     train_model(model, optimizer, train_loader, num_epochs=600, use_cuda=True)
