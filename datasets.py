@@ -37,7 +37,7 @@ class ModelnetDataset(FromNpDataset):
         'https://drive.google.com/uc?export=download&id=1UlcrapAbSBRDhCNVsuPMEaEAcvDXxOLY',
     ]
 
-    def __init__(self, transform=None):
+    def __init__(self, classes=None, transform=None):
         if not os.path.isdir(DATA_DIR):
             os.mkdir(DATA_DIR)
 
@@ -46,14 +46,19 @@ class ModelnetDataset(FromNpDataset):
             if not os.path.exists(file_path):
                 gdown.download(url, file_path, quiet=False)
 
-        data_list = []
+        data_list, label_list = [], []
         h5_files = [ f for f in listdir(DATA_DIR)
                         if os.path.isfile(os.path.join(DATA_DIR, f))
                         if os.path.splitext(f)[1] == DATA_FILE_EXT ]
         for f in h5_files:
             hf = h5py.File(os.path.join(DATA_DIR, f), 'r')
             data_list.append(hf.get('data'))
+            label_list.append(hf.get('label'))
 
         data = np.transpose(np.concatenate(data_list, axis=0), (0, 2, 1))
+
+        if classes:
+            labels = np.concatenate(label_list, axis=0)
+            data = np.array([ data[idx] for idx in range(data.shape[0]) if labels[idx] in classes ])
 
         super().__init__(data, transform=transform)

@@ -5,41 +5,42 @@ from torch import nn
 import torch.nn.functional as F
 
 from pointnet import PointNetfeat
-from chamfer_distance import ChamferDistance
 
 LATENT = 128
 ENCODER_HIDDEN = 1024
 OUT_POINTS = 2048
-DECODER_LAYERS = [LATENT, 512, 1024, 2048, 3*OUT_POINTS]
+DECODER_LAYERS = [LATENT, 512, 1024, 1024, 2048, 3*OUT_POINTS]
 
 MODELS_DIR = 'trained'
 MODELS_EXT = '.dms'
 MODEL_DEFAULT_NAME = 'trained'
 
-cdist = ChamferDistance()
-def cd(x, y):
-    x = x.permute(0, 2, 1)
-    y = y.permute(0, 2, 1)
-    d1, d2 = cdist(x, y)
-    return torch.sum(d1, dim=1) + torch.sum(d2, dim=1)
+if torch.cuda.is_available():
+    from chamfer_distance import ChamferDistance
+    cdist = ChamferDistance()
+    def cd(x, y):
+        x = x.permute(0, 2, 1)
+        y = y.permute(0, 2, 1)
+        d1, d2 = cdist(x, y)
+        return torch.sum(d1, dim=1) + torch.sum(d2, dim=1)
+else:
+    def cd(S, T):
+        S = S.permute(0, 2, 1).unsqueeze(2)
+        T = T.permute(0, 2, 1).unsqueeze(1)
 
-# def cd(S, T):
-#     S = S.permute(0, 2, 1).unsqueeze(2)
-#     T = T.permute(0, 2, 1).unsqueeze(1)
-#
-#     S_center = S.mean(dim=1, keepdim=True)
-#     T_center = T.mean(dim=1, keepdim=True)
-#
-#     d = torch.sum(torch.pow(S - T, 2), dim=3)
-#     d1_center = torch.sum(torch.pow(S - S_center, 2), dim=3)
-#     d2_center = torch.sum(torch.pow(T - T_center, 2), dim=3)
-#
-#     d1 = torch.sum( d1_center * torch.min(d, dim=2)[0], dim=1 )
-#     d2 = torch.sum( d2_center * torch.min(d, dim=1)[0], dim=1 )
-#     d1 = torch.sum(torch.min(d, dim=2)[0], dim=1)
-#     d2 = torch.sum(torch.min(d, dim=1)[0], dim=1)
-#
-#     return d1+d2
+        # S_center = S.mean(dim=1, keepdim=True)
+        # T_center = T.mean(dim=1, keepdim=True)
+
+        d = torch.sum(torch.pow(S - T, 2), dim=3)
+        # d1_center = torch.sum(torch.pow(S - S_center, 2), dim=3)
+        # d2_center = torch.sum(torch.pow(T - T_center, 2), dim=3)
+
+        # d1 = torch.sum( d1_center * torch.min(d, dim=2)[0], dim=1 )
+        # d2 = torch.sum( d2_center * torch.min(d, dim=1)[0], dim=1 )
+        d1 = torch.sum(torch.min(d, dim=2)[0], dim=1)
+        d2 = torch.sum(torch.min(d, dim=1)[0], dim=1)
+
+        return d1+d2
 
 def elbo_loss(x, reconstruction, z_mean, z_log_sigma2, beta=1.0):
     N = x.size(0)
