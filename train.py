@@ -48,11 +48,9 @@ def train_model(model, optimizer, loader, beta=1.0, num_epochs=100, use_cuda=Tru
     print('done.')
 
 if __name__ == '__main__':
-    t = transforms.Compose([
-        transforms.GaussianNoise(0.005),
-    ])
+    t = transforms.GaussianNoise(0.005)
     train_dataset = ModelnetDataset(classes=[CLASS], transform=t)
-    train_loader = DataLoader(train_dataset, batch_size=24,
+    train_loader = DataLoader(train_dataset, batch_size=25,
                             shuffle=True, num_workers=4)
 
     model = VAE(ENCODER_HIDDEN, DECODER_LAYERS)
