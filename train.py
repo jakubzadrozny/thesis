@@ -51,4 +51,4 @@ if __name__ == '__main__':
     model = VAE(ENCODER_HIDDEN, DECODER_LAYERS)
     optimizer = Adam(model.parameters(), lr=2e-4)
 
-    train_model(model, optimizer, train_loader, lbd=4.0, mc_samples=10, num_epochs=1000, use_cuda=False)
+    train_model(model, optimizer, train_loader, lbd=4.0, mc_samples=10, num_epochs=1000, use_cuda=True)
