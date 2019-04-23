@@ -5,7 +5,7 @@ from datasets import ModelnetDataset, FAVOURITE_CLASS
 from models import VAE, ENCODER_HIDDEN, DECODER_LAYERS
 import transforms
 
-INF = 1000 * 1000 * 1000
+INF = 1e60
 
 def train_model(model, optimizer, loader, mc_samples=1, beta=1.0, num_epochs=100, use_cuda=True):
     print('Training your model!\n')
@@ -46,9 +46,9 @@ def train_model(model, optimizer, loader, mc_samples=1, beta=1.0, num_epochs=100
 
 if __name__ == '__main__':
     train_dataset = ModelnetDataset(classes=[FAVOURITE_CLASS])
-    train_loader = DataLoader(train_dataset, batch_size=25, shuffle=True, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, num_workers=4)
 
     model = VAE(ENCODER_HIDDEN, DECODER_LAYERS)
-    optimizer = Adam(model.parameters(), lr=1e-4)
+    optimizer = Adam(model.parameters(), lr=2e-4)
 
     train_model(model, optimizer, train_loader, num_epochs=1000, use_cuda=True)
