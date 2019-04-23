@@ -7,7 +7,7 @@ import transforms
 
 INF = 1e60
 
-def train_model(model, optimizer, loader, mc_samples=1, beta=1.0, num_epochs=100, use_cuda=True):
+def train_model(model, optimizer, loader, mc_samples=1, beta=1.0, lbd=0.0, num_epochs=100, use_cuda=True):
     print('Training your model!\n')
     model.train()
     if use_cuda:
@@ -26,7 +26,7 @@ def train_model(model, optimizer, loader, mc_samples=1, beta=1.0, num_epochs=100
                 global_step += 1
                 optimizer.zero_grad()
 
-                loss, stats = model.elbo_loss(batch, mc_samples=mc_samples, beta=beta)
+                loss, stats = model.elbo_loss(batch, mc_samples=mc_samples, beta=beta, lbd=lbd)
 
                 loss.backward()
                 optimizer.step()
@@ -46,9 +46,9 @@ def train_model(model, optimizer, loader, mc_samples=1, beta=1.0, num_epochs=100
 
 if __name__ == '__main__':
     train_dataset = ModelnetDataset(classes=[FAVOURITE_CLASS])
-    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4)
 
     model = VAE(ENCODER_HIDDEN, DECODER_LAYERS)
     optimizer = Adam(model.parameters(), lr=2e-4)
 
-    train_model(model, optimizer, train_loader, num_epochs=1000, use_cuda=True)
+    train_model(model, optimizer, train_loader, lbd=4.0, mc_samples=10, num_epochs=1000, use_cuda=False)
