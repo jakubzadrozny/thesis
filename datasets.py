@@ -12,6 +12,8 @@ DATA_DIR = 'data'
 DATA_FILE_BASE = 'ply_data_train'
 DATA_FILE_EXT = '.h5'
 
+FAVOURITE_CLASS = 8
+
 class FromNpDataset(Dataset):
     def __init__(self, np_data, transform=None):
         self.data = np_data

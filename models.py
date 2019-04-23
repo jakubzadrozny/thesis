@@ -43,13 +43,19 @@ else:
         return d1+d2
 
 def elbo_loss(x, reconstruction, z_mean, z_log_sigma2, beta=1.0):
+    if len(reconstruction.shape) < 4:
+        reconstruction = reconstruction.unsqueeze(0)
     N = x.size(0)
+    x = torch.flatten(x.unsqueeze(0).expand_as(reconstruction), end_dim=1)
+    reconstruction = torch.flatten(reconstruction, end_dim=1)
+
     rec_loss = torch.mean(cd(x, reconstruction))
     KL_loss = (-0.5 / N) * (
         torch.sum(1.0 + z_log_sigma2 - z_mean.pow(2) - z_log_sigma2.exp()))
 
     return (rec_loss + beta * KL_loss,
             {'rec': rec_loss.item(), 'KL': KL_loss.item()})
+
 
 class PointnetEncoder(nn.Module):
     def __init__(self, hidden, latent):
@@ -81,6 +87,7 @@ class MLPDecoder(nn.Module):
             x = F.relu(layer(x))
         return self.fc[-1](x)
 
+
 class VAE(torch.nn.Module):
     def __init__(self, hidden, decoder_dims):
         super(VAE, self).__init__()
@@ -94,11 +101,11 @@ class VAE(torch.nn.Module):
         epsilon.add_(z_mean)
         return epsilon
 
-    def forward(self, x):
+    def forward(self, x, samples_drawn=1):
         z_mean, z_log_sigma2 = self.encoder(x)
-        z = self.sample(z_mean, z_log_sigma2)
-        reconstruction = self.decoder(z).view(x.size())
-        return reconstruction, z_mean, z_log_sigma2
+        zs = [ self.sample(z_mean, z_log_sigma2) for i in range(samples_drawn) ]
+        recs = torch.stack([ self.decoder(z).view(x.size()) for z in zs ], dim=0).squeeze(0)
+        return recs, z_mean, z_log_sigma2
 
     def save_to_drive(self, name=MODEL_DEFAULT_NAME):
         torch.save(self.state_dict(), os.path.join(MODELS_DIR, name+MODELS_EXT))
