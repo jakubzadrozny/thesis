@@ -42,20 +42,6 @@ else:
 
         return d1+d2
 
-def elbo_loss(x, reconstruction, z_mean, z_log_sigma2, beta=1.0):
-    if len(reconstruction.shape) < 4:
-        reconstruction = reconstruction.unsqueeze(0)
-    N = x.size(0)
-    x = torch.flatten(x.unsqueeze(0).expand_as(reconstruction), end_dim=1)
-    reconstruction = torch.flatten(reconstruction, end_dim=1)
-
-    rec_loss = torch.mean(cd(x, reconstruction))
-    KL_loss = (-0.5 / N) * (
-        torch.sum(1.0 + z_log_sigma2 - z_mean.pow(2) - z_log_sigma2.exp()))
-
-    return (rec_loss + beta * KL_loss,
-            {'rec': rec_loss.item(), 'KL': KL_loss.item()})
-
 
 class PointnetEncoder(nn.Module):
     def __init__(self, hidden, latent):
@@ -101,11 +87,32 @@ class VAE(torch.nn.Module):
         epsilon.add_(z_mean)
         return epsilon
 
-    def forward(self, x, samples_drawn=1):
-        z_mean, z_log_sigma2 = self.encoder(x)
-        zs = [ self.sample(z_mean, z_log_sigma2) for i in range(samples_drawn) ]
-        recs = torch.stack([ self.decoder(z).view(x.size()) for z in zs ], dim=0).squeeze(0)
-        return recs, z_mean, z_log_sigma2
+    def encode(self, x):
+        return self.encoder(x)
+
+    def decode(self, z_mean, z_log_sigma2, shape):
+        z = self.sample(z_mean, z_log_sigma2)
+        rec = self.decoder(z).view(shape)
+        return rec
+
+    def forward(self, x):
+        z_mean, z_log_sigma2 = self.encode(x)
+        rec = self.decode(z_mean, z_log_sigma2, x.shape)
+        return rec, z_mean, z_log_sigma2
+
+    def elbo_loss(self, x, mc_samples=1, beta=1.0):
+        N = x.size(0)
+        z_mean, z_log_sigma2 = self.encode(x)
+        KL_loss = (-0.5 / N) * torch.sum(1.0 + z_log_sigma2 - z_mean.pow(2) - z_log_sigma2.exp())
+
+        rec_loss = 0
+        for i in range(mc_samples):
+            rec = self.decode(z_mean, z_log_sigma2, x.shape)
+            rec_loss += torch.mean(cd(x, rec))
+        rec_loss /= mc_samples
+
+        return (rec_loss + beta * KL_loss,
+                {'rec': rec_loss.item(), 'KL': KL_loss.item()})
 
     def save_to_drive(self, name=MODEL_DEFAULT_NAME):
         torch.save(self.state_dict(), os.path.join(MODELS_DIR, name+MODELS_EXT))

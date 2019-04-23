@@ -2,12 +2,12 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 
 from datasets import ModelnetDataset, FAVOURITE_CLASS
-from models import VAE, cd, elbo_loss, ENCODER_HIDDEN, DECODER_LAYERS
+from models import VAE, ENCODER_HIDDEN, DECODER_LAYERS
 import transforms
 
 INF = 1000 * 1000 * 1000
 
-def train_model(model, optimizer, loader, samples_drawn=1, beta=1.0, num_epochs=100, use_cuda=True):
+def train_model(model, optimizer, loader, mc_samples=1, beta=1.0, num_epochs=100, use_cuda=True):
     print('Training your model!\n')
     model.train()
     if use_cuda:
@@ -26,8 +26,7 @@ def train_model(model, optimizer, loader, samples_drawn=1, beta=1.0, num_epochs=
                 global_step += 1
                 optimizer.zero_grad()
 
-                reconstruction, mu, sigma2 = model(batch, samples_drawn=samples_drawn)
-                loss, stats = elbo_loss(batch, reconstruction, mu, sigma2, beta=beta)
+                loss, stats = model.elbo_loss(batch, mc_samples=mc_samples, beta=beta)
 
                 loss.backward()
                 optimizer.step()
@@ -46,10 +45,8 @@ def train_model(model, optimizer, loader, samples_drawn=1, beta=1.0, num_epochs=
     print('done.')
 
 if __name__ == '__main__':
-    t = transforms.GaussianNoise(0.005)
-    train_dataset = ModelnetDataset(classes=[FAVOURITE_CLASS], transform=t)
-    train_loader = DataLoader(train_dataset, batch_size=15,
-                            shuffle=True, num_workers=4)
+    train_dataset = ModelnetDataset(classes=[FAVOURITE_CLASS])
+    train_loader = DataLoader(train_dataset, batch_size=25, shuffle=True, num_workers=4)
 
     model = VAE(ENCODER_HIDDEN, DECODER_LAYERS)
     optimizer = Adam(model.parameters(), lr=1e-4)
