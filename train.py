@@ -3,7 +3,6 @@ from torch.utils.data import DataLoader
 
 from datasets import ModelnetDataset, FAVOURITE_CLASS
 from models import VAE, ENCODER_HIDDEN, DECODER_LAYERS
-import transforms
 
 INF = 1e60
 

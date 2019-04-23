@@ -103,9 +103,9 @@ class VAE(torch.nn.Module):
     def elbo_loss(self, x, mc_samples=1, beta=1.0, lbd=0.0):
         N = x.size(0)
         z_mean, z_log_sigma2 = self.encode(x)
-        KL_loss = torch.max(
-            torch.tensor(lbd),
-            (-0.5 / N) * torch.sum(1.0 + z_log_sigma2 - z_mean.pow(2) - z_log_sigma2.exp())
+        KL_loss = torch.clamp(
+            (-0.5 / N) * torch.sum(1.0 + z_log_sigma2 - z_mean.pow(2) - z_log_sigma2.exp()),
+            min=lbd
         )
 
         rec_loss = 0
