@@ -29,7 +29,10 @@ def train_model(model, optimizer, loader, mc_samples=1, beta=1.0, lbd=0.0, num_e
                 global_step += 1
                 optimizer.zero_grad()
 
-                loss, stats = model.elbo_loss(batch, mc_samples=mc_samples, beta=beta, lbd=lbd)
+                if MULTIPLE_GPUS:
+                    loss, stats = model.module.elbo_loss(batch, mc_samples=mc_samples, beta=beta, lbd=lbd)
+                else:
+                    loss, stats = model.elbo_loss(batch, mc_samples=mc_samples, beta=beta, lbd=lbd)
 
                 loss.backward()
                 optimizer.step()
@@ -56,4 +59,4 @@ if __name__ == '__main__':
         model = nn.DataParallel(model)
     optimizer = Adam(model.parameters(), lr=2e-4)
 
-    train_model(model, optimizer, train_loader, lbd=10.0, mc_samples=10, num_epochs=3000)
+    train_model(model, optimizer, train_loader, lbd=7.5, mc_samples=10, num_epochs=3000)
