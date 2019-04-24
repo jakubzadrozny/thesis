@@ -8,7 +8,7 @@ from models import VAE, ENCODER_HIDDEN, DECODER_LAYERS
 
 INF = 1e60
 USE_CUDA = torch.cuda.is_available()
-MULTIPLE_GPUS = torch.cuda.device_count() > 1
+# MULTIPLE_GPUS = torch.cuda.device_count() > 1
 
 def train_model(model, optimizer, loader, mc_samples=1, beta=1.0, lbd=0.0, num_epochs=100):
     print('Training your model!\n')
@@ -29,10 +29,10 @@ def train_model(model, optimizer, loader, mc_samples=1, beta=1.0, lbd=0.0, num_e
                 global_step += 1
                 optimizer.zero_grad()
 
-                if MULTIPLE_GPUS:
-                    loss, stats = model.module.elbo_loss(batch, mc_samples=mc_samples, beta=beta, lbd=lbd)
-                else:
-                    loss, stats = model.elbo_loss(batch, mc_samples=mc_samples, beta=beta, lbd=lbd)
+                # if MULTIPLE_GPUS:
+                    # loss, stats = model.module.elbo_loss(batch, mc_samples=mc_samples, beta=beta, lbd=lbd)
+                # else:
+                loss, stats = model.elbo_loss(batch, mc_samples=mc_samples, beta=beta, lbd=lbd)
 
                 loss.backward()
                 optimizer.step()
@@ -55,8 +55,8 @@ if __name__ == '__main__':
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4)
 
     model = VAE(ENCODER_HIDDEN, DECODER_LAYERS)
-    if MULTIPLE_GPUS:
-        model = nn.DataParallel(model)
+    # if MULTIPLE_GPUS:
+    #     model = nn.DataParallel(model)
     optimizer = Adam(model.parameters(), lr=2e-4)
 
     train_model(model, optimizer, train_loader, lbd=7.5, mc_samples=10, num_epochs=3000)
