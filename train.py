@@ -70,6 +70,14 @@ def train_semisupervised(model, optimizer, labeled_loader, unlabeled_loader, p=0
                 optimizer.zero_grad()
                 if torch.bernoulli(torch.tensor(p)).item():
                     try:
+                        x = next(unlabeled_iter)
+                    except StopIteration:
+                        break
+                    if USE_CUDA:
+                        x = x.cuda()
+                    loss, stats = model.elbo_unknown_y(x, mc_samples=mc_samples, lbd=lbd)
+                else:
+                    try:
                         x, y = next(labeled_iter)
                     except StopIteration:
                         break
@@ -77,14 +85,6 @@ def train_semisupervised(model, optimizer, labeled_loader, unlabeled_loader, p=0
                         x = x.cuda()
                         y = y.cuda()
                     loss, stats = model.elbo_known_y(x, y, mc_samples=mc_samples, lbd=lbd)
-                else:
-                    try:
-                        x = next(unlabeled_iter)
-                    except StopIteration:
-                        break
-                    if USE_CUDA:
-                        x = x.cuda()
-                    loss, stats = model.elbo_unknown_y(x, mc_samples=mc_samples, lbd=lbd)
                 loss.backward()
                 optimizer.step()
 
