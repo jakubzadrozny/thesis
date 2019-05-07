@@ -28,7 +28,7 @@ def train_model(model, optimizer, loader, with_labels=False, p=0.0, mc_samples=1
                 if USE_CUDA:
                     x = x.cuda()
                     if y is not None:
-                        y.cuda()
+                        y = y.cuda()
 
                 global_step += 1
                 optimizer.zero_grad()
