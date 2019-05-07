@@ -23,10 +23,12 @@ def train_model(model, optimizer, loader, with_labels=False, p=0.0, mc_samples=1
     try:
         for epoch in range(num_epochs):
             for inum, batch in enumerate(loader):
-                if USE_CUDA:
-                    batch = batch.cuda()
                 x = batch[0] if with_labels else batch
                 y = batch[1] if with_labels else None
+                if USE_CUDA:
+                    x = x.cuda()
+                    if y is not None:
+                        y.cuda()
 
                 global_step += 1
                 optimizer.zero_grad()
@@ -75,7 +77,7 @@ def train_vae():
 def train_m2():
     K = len(FAVOURITE_CLASSES)
     train_dataset = ModelnetDataset(with_labels=True, filter=FAVOURITE_CLASSES)
-    train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4)
 
     model = M2(K, ENCODER_HIDDEN, DECODER_LAYERS)
     # if MULTIPLE_GPUS:
