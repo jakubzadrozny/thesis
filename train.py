@@ -63,14 +63,14 @@ def train_model(model, optimizer, loader, with_labels=False, p=0.0, mc_samples=1
 
 def train_vae():
     train_dataset = ModelnetDataset(filter=[FAVOURITE_CLASS])
-    train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4)
 
     model = VAE(ENCODER_HIDDEN, DECODER_LAYERS)
     # if MULTIPLE_GPUS:
     #     model = nn.DataParallel(model)
     optimizer = Adam(model.parameters(), lr=2e-4)
 
-    train_model(model, optimizer, train_loader, lbd=0.2, num_epochs=2000)
+    train_model(model, optimizer, train_loader, lbd=0.5, num_epochs=2000)
 
 
 def train_m2():
@@ -84,7 +84,7 @@ def train_m2():
     optimizer = Adam(model.parameters(), lr=2e-4)
 
     train_model_with_labels(model, optimizer, train_loader, with_labels=True,
-                            p=0.0, lbd=0.2, num_epochs=2000)
+                            p=0.0, lbd=1.0, num_epochs=2000)
 
 
 if __name__ == '__main__':

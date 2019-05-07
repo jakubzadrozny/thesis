@@ -15,32 +15,32 @@ MODELS_DIR = 'trained'
 MODELS_EXT = '.dms'
 MODEL_DEFAULT_NAME = 'trained'
 
-# if torch.cuda.is_available():
-#     from chamfer_distance import ChamferDistance
-#     cdist = ChamferDistance()
-#     def cd(x, y):
-#         x = x.permute(0, 2, 1)
-#         y = y.permute(0, 2, 1)
-#         d1, d2 = cdist(x, y)
-#         return torch.sum(d1, dim=1) + torch.sum(d2, dim=1)
-# else:
-def cd(S, T):
-    S = S.permute(0, 2, 1).unsqueeze(2)
-    T = T.permute(0, 2, 1).unsqueeze(1)
+if torch.cuda.is_available():
+    from chamfer_distance import ChamferDistance
+    cdist = ChamferDistance()
+    def cd(x, y):
+        x = x.permute(0, 2, 1)
+        y = y.permute(0, 2, 1)
+        d1, d2 = cdist(x, y)
+        return torch.sum(d1, dim=1) + torch.sum(d2, dim=1)
+else:
+    def cd(S, T):
+        S = S.permute(0, 2, 1).unsqueeze(2)
+        T = T.permute(0, 2, 1).unsqueeze(1)
 
-    # S_center = S.mean(dim=1, keepdim=True)
-    # T_center = T.mean(dim=1, keepdim=True)
+        # S_center = S.mean(dim=1, keepdim=True)
+        # T_center = T.mean(dim=1, keepdim=True)
 
-    d = torch.sum(torch.pow(S - T, 2), dim=3)
-    # d1_center = torch.sum(torch.pow(S - S_center, 2), dim=3)
-    # d2_center = torch.sum(torch.pow(T - T_center, 2), dim=3)
+        d = torch.sum(torch.pow(S - T, 2), dim=3)
+        # d1_cener = torch.sum(torch.pow(S - S_center, 2), dim=3)
+        # d2_center = torch.sum(torch.pow(T - T_center, 2), dim=3)
 
-    # d1 = torch.sum( d1_center * torch.min(d, dim=2)[0], dim=1 )
-    # d2 = torch.sum( d2_center * torch.min(d, dim=1)[0], dim=1 )
-    d1 = torch.sum(torch.min(d, dim=2)[0], dim=1)
-    d2 = torch.sum(torch.min(d, dim=1)[0], dim=1)
+        # d1 = torch.sum( d1_center * torch.min(d, dim=2)[0], dim=1 )
+        # d2 = torch.sum( d2_center * torch.min(d, dim=1)[0], dim=1 )
+        d1 = torch.sum(torch.min(d, dim=2)[0], dim=1)
+        d2 = torch.sum(torch.min(d, dim=1)[0], dim=1)
 
-    return d1+d2
+        return d1+d2
 
 
 class SimplePointnetEncoder(nn.Module):
@@ -125,9 +125,9 @@ class VAE(nn.Module):
 
     def elbo_loss(self, x, mc_samples=1, lbd=0.0):
         z_mean, z_log_sigma2 = self.encode(x)
-        KL_loss = -0.5 * torch.mean(
-            torch.clamp(1.0 + z_log_sigma2 - z_mean.pow(2) - z_log_sigma2.exp(),
-                        max=-lbd)
+        KL_loss = torch.mean(
+            torch.clamp(-0.5*(1.0 + z_log_sigma2 - z_mean.pow(2) - z_log_sigma2.exp()),
+                        min=lbd)
         )
 
         rec_loss = 0
@@ -177,10 +177,9 @@ class M2(nn.Module):
 
     def elbo_known_y(self, x, y, alpha=0.1, lbd=0.0, mc_samples=1):
         z_mean, z_log_sigma2 = self.encode_based_on_y(x, y)
-        KL_loss = -0.5 * torch.mean(
-            # torch.clamp(1.0 + z_log_sigma2 - z_mean.pow(2) - z_log_sigma2.exp(),
-                        # max=-lbd)
-            1.0 + z_log_sigma2 - z_mean.pow(2) - z_log_sigma2.exp()
+        KL_loss = torch.mean(
+            torch.clamp(-0.5*(1.0 + z_log_sigma2 - z_mean.pow(2) - z_log_sigma2.exp()),
+                        min=lbd)
         )
         y_penalty = -torch.full_like(KL_loss, torch.log(1/K))
 
@@ -211,3 +210,13 @@ class M2(nn.Module):
         loss = -torch.sum(y_pred * losses, dim=1)
         entropy = torch.sum(y_pred * torch.log(y_pred), dim=1)
         return torch.mean(loss + entropy)
+
+    def save_to_drive(self, name=MODEL_DEFAULT_NAME):
+        torch.save(self.state_dict(), os.path.join(MODELS_DIR, name+MODELS_EXT))
+
+    @staticmethod
+    def load_from_drive(K, hidden, decoder_dims, name=MODEL_DEFAULT_NAME):
+        model = M2(K, hidden, decoder_dims)
+        model.load_state_dict(torch.load(os.path.join(MODELS_DIR, name+MODELS_EXT)))
+        model.eval()
+        return model
