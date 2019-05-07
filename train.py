@@ -3,8 +3,8 @@ import torch.nn as nn
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 
-from datasets import ModelnetDataset, FAVOURITE_CLASS
-from models import VAE, ENCODER_HIDDEN, DECODER_LAYERS
+from datasets import ModelnetDataset, FAVOURITE_CLASS, FAVOURITE_CLASSES
+from models import VAE, M2, ENCODER_HIDDEN, DECODER_LAYERS
 
 INF = 1e60
 USE_CUDA = torch.cuda.is_available()
@@ -35,11 +35,10 @@ def train_model(model, optimizer, loader, with_labels=False, p=0.0, mc_samples=1
                     # loss, stats = model.module.elbo_loss(batch, mc_samples=mc_samples, lbd=lbd)
                 # else:
                 if with_labels:
-                    stats = {}
                     if torch.bernoulli(torch.tensor(p)).item():
-                        loss = model.elbo_unknown_y(x, mc_samples=mc_samples, lbd=lbd)
+                        loss, stats = model.elbo_unknown_y(x, mc_samples=mc_samples, lbd=lbd)
                     else:
-                        loss = model.elbo_known_y(x, y, mc_samples=mc_samples, lbd=lbd)
+                        loss, stats = model.elbo_known_y(x, y, mc_samples=mc_samples, lbd=lbd)
                 else:
                     loss, stats = model.elbo_loss(x, mc_samples=mc_samples, lbd=lbd)
                     # loss, stats = model.elbo_loss(batch, mc_samples=mc_samples, lbd=lbd)
@@ -76,16 +75,16 @@ def train_vae():
 def train_m2():
     K = len(FAVOURITE_CLASSES)
     train_dataset = ModelnetDataset(with_labels=True, filter=FAVOURITE_CLASSES)
-    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=4)
 
     model = M2(K, ENCODER_HIDDEN, DECODER_LAYERS)
     # if MULTIPLE_GPUS:
     #     model = nn.DataParallel(model)
     optimizer = Adam(model.parameters(), lr=2e-4)
 
-    train_model_with_labels(model, optimizer, train_loader, with_labels=True,
+    train_model(model, optimizer, train_loader, with_labels=True,
                             p=0.0, lbd=1.0, num_epochs=2000)
 
 
 if __name__ == '__main__':
-    train_vae()
+    train_m2()

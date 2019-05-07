@@ -15,10 +15,17 @@ DATA_FILE_EXT = '.h5'
 FAVOURITE_CLASS = 8
 FAVOURITE_CLASSES = [0, 2, 4, 8, 30]
 
+def one_hot(y, K):
+    x = torch.zeros(K)
+    x[y] = 1
+    return x
+
 class FromNpDataset(Dataset):
     def __init__(self, np_data, labels=None, transform=None):
         self.data = np_data
         self.labels = labels
+        if labels:
+            self.num_classes = len(set(labels))
         self.transform = transform
 
     def __len__(self):
@@ -26,7 +33,7 @@ class FromNpDataset(Dataset):
 
     def __getitem__(self, idx):
         sample = self.data[idx]
-        label = self.labels[idx] if self.labels is not None else None
+        label = one_hot(self.labels[idx], self.num_classes) if self.labels is not None else None
         if self.transform:
             sample = self.transform(sample)
         res = Variable(torch.from_numpy(sample))

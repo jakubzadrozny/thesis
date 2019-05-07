@@ -5,6 +5,7 @@ from torch import nn
 import torch.nn.functional as F
 
 from pointnet import PointNetfeat
+from datasets import one_hot
 
 LATENT = 128
 ENCODER_HIDDEN = 1024
@@ -42,6 +43,19 @@ else:
 
         return d1+d2
 
+def one_hot(y, K):
+    N = y.shape[0]
+    x = torch.zeros((N, K))
+    x[torch.arange(0, N, 1), y] = 1
+    return x
+
+def gaussian_sample(z_mean, z_log_sigma2):
+    z_sigma = torch.exp(0.5 * z_log_sigma2)
+    epsilon = torch.randn_like(z_mean)
+    epsilon.mul_(z_sigma)
+    epsilon.add_(z_mean)
+    return epsilon
+
 
 class SimplePointnetEncoder(nn.Module):
     def __init__(self, hidden, latent):
@@ -52,27 +66,6 @@ class SimplePointnetEncoder(nn.Module):
 
     def forward(self, x):
         x = F.relu(self.model(x)[0])
-        x = F.relu(self.fc1(x))
-        x = self.fc2(x)
-        return x
-
-
-class PointnetSoftmaxEncoder(SimplePointnetEncoder):
-    def forward(self, x):
-        x = super().forward(x)
-        return F.softmax(x)
-
-
-class ClassPointentEncoder(nn.Module):
-    def __init__(self, hidden, K, latent):
-        super().__init__()
-        self.feats = PointNetfeat()
-        self.fc1 = nn.Linear(1024 + K, hidden)
-        self.fc2 = nn.Linear(hidden, latent)
-
-    def forward(self, x, y):
-        x = F.relu(self.model(x)[0])
-        x = torch.concatenate((x, y), dim=1)
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
         return x
@@ -103,18 +96,11 @@ class VAE(nn.Module):
         self.sigma_encoder = SimplePointnetEncoder(hidden, latent)
         self.decoder = MLPDecoder(decoder_dims)
 
-    def sample(self, z_mean, z_log_sigma2):
-        z_sigma = torch.exp(0.5 * z_log_sigma2)
-        epsilon = torch.randn_like(z_mean)
-        epsilon.mul_(z_sigma)
-        epsilon.add_(z_mean)
-        return epsilon
-
     def encode(self, x):
         return self.mean_encoder(x), self.sigma_encoder(x)
 
     def decode(self, z_mean, z_log_sigma2, shape):
-        z = self.sample(z_mean, z_log_sigma2)
+        z = gaussian_sample(z_mean, z_log_sigma2)
         rec = self.decoder(z)
         return rec.view(shape)
 
@@ -150,16 +136,45 @@ class VAE(nn.Module):
         return model
 
 
+class PointnetSoftmaxEncoder(SimplePointnetEncoder):
+    def forward(self, x):
+        x = super().forward(x)
+        return F.softmax(x, dim=1)
+
+
+class ClassPointentEncoder(nn.Module):
+    def __init__(self, hidden, K, latent):
+        super().__init__()
+        self.feats = PointNetfeat()
+        self.fc1 = nn.Linear(1024 + K, hidden)
+        self.fc2 = nn.Linear(hidden, latent)
+
+    def forward(self, x, y):
+        x = F.relu(self.feats(x)[0])
+        x = torch.cat((x, y), dim=1)
+        x = F.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+
+
+class ClassMLPDecoder(MLPDecoder):
+    def __init__(self, K, dims):
+        dims[0] += K
+        super().__init__(dims)
+
+    def forward(self, x, y):
+        return super().forward(torch.cat((x, y), dim=1))
+
+
 class M2(nn.Module):
     def __init__(self, K, hidden, decoder_dims):
         super().__init__()
         latent = decoder_dims[0]
-        decoder_dims[0] = latent + K
         self.num_classes = K
-        self.class_encoder = SoftmaxPointnetEncoder(hidden, K)
+        self.class_encoder = PointnetSoftmaxEncoder(hidden, K)
         self.sigma_encoder = SimplePointnetEncoder(hidden, latent)
-        self.mean_encoder = ClassPointnetEncoder(hidden, K, latent)
-        self.decoder = MLPDecoder(decoder_dims)
+        self.mean_encoder = ClassPointentEncoder(hidden, K, latent)
+        self.decoder = ClassMLPDecoder(K, decoder_dims)
 
     def encode_y(self, x):
         return self.class_encoder(x)
@@ -170,18 +185,17 @@ class M2(nn.Module):
         return z_mean, z_log_sigma2
 
     def decode(self, z_mean, z_log_sigma2, y, shape):
-        z = self.sample(z_mean, z_log_sigma2)
-        latent = torch.cat((y, z), dim=1)
-        rec = self.decoder(latent)
+        z = gaussian_sample(z_mean, z_log_sigma2)
+        rec = self.decoder(y, z)
         return rec.view(shape)
 
-    def elbo_known_y(self, x, y, alpha=0.1, lbd=0.0, mc_samples=1):
-        z_mean, z_log_sigma2 = self.encode_based_on_y(x, y)
+    def elbo_known_y(self, x, y, alpha=1.0, lbd=0.0, mc_samples=1):
+        z_mean, z_log_sigma2 = self.encode_z_based_on_y(x, y)
         KL_loss = torch.mean(
             torch.clamp(-0.5*(1.0 + z_log_sigma2 - z_mean.pow(2) - z_log_sigma2.exp()),
                         min=lbd)
         )
-        y_penalty = -torch.full_like(KL_loss, torch.log(1/K))
+        # y_penalty = -torch.log(torch.tensor(1/self.num_classes))
 
         rec_loss = 0
         for i in range(mc_samples):
@@ -195,21 +209,22 @@ class M2(nn.Module):
         else:
             cls_loss = 0
 
-        return rec_loss + KL_loss + y_penalty + clf_loss
-                # {'rec': rec_loss.item(), 'KL': KL_loss.item(), 'clf_loss': clf_loss.item()})
+        return rec_loss + KL_loss + clf_loss, {
+                'rec': rec_loss.item(), 'KL': KL_loss.item(),
+                'clf': clf_loss.item() } #'y_pen': y_penalty.item() }
 
     def elbo_unknown_y(self, x, lbd=0.0, mc_samples=1):
         y_pred = self.encode_y(x)
         losses = []
         N = x.shape[0]
         for i in range(K):
-            y = F.one_hot(torch.full(N, i))
+            y = one_hot(torch.full(N, i), self.num_classes)
             elbo = self.elbo_known_y(x, y, alpha=0, lbd=lbd, mc_samples=mc_samples)
             losses.append(elbo)
         losses = torch.cat(losses, dim=1)
         loss = -torch.sum(y_pred * losses, dim=1)
         entropy = torch.sum(y_pred * torch.log(y_pred), dim=1)
-        return torch.mean(loss + entropy)
+        return torch.mean(loss + entropy), {}
 
     def save_to_drive(self, name=MODEL_DEFAULT_NAME):
         torch.save(self.state_dict(), os.path.join(MODELS_DIR, name+MODELS_EXT))
