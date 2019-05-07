@@ -13,10 +13,12 @@ DATA_FILE_BASE = 'ply_data_train'
 DATA_FILE_EXT = '.h5'
 
 FAVOURITE_CLASS = 8
+FAVOURITE_CLASSES = [0, 2, 4, 8, 30]
 
 class FromNpDataset(Dataset):
-    def __init__(self, np_data, transform=None):
+    def __init__(self, np_data, labels=None, transform=None):
         self.data = np_data
+        self.labels = labels
         self.transform = transform
 
     def __len__(self):
@@ -24,10 +26,15 @@ class FromNpDataset(Dataset):
 
     def __getitem__(self, idx):
         sample = self.data[idx]
+        label = self.labels[idx] if self.labels is not None else None
         if self.transform:
             sample = self.transform(sample)
         res = Variable(torch.from_numpy(sample))
-        return res
+        if label is not None:
+            return res, label
+        else:
+            return res
+
 
 class ModelnetDataset(FromNpDataset):
 
@@ -39,7 +46,7 @@ class ModelnetDataset(FromNpDataset):
         'https://drive.google.com/uc?export=download&id=1UlcrapAbSBRDhCNVsuPMEaEAcvDXxOLY',
     ]
 
-    def __init__(self, classes=None, transform=None):
+    def __init__(self, with_labels=False, filter=None, transform=None):
         if not os.path.isdir(DATA_DIR):
             os.mkdir(DATA_DIR)
 
@@ -58,9 +65,14 @@ class ModelnetDataset(FromNpDataset):
             label_list.append(hf.get('label'))
 
         data = np.transpose(np.concatenate(data_list, axis=0), (0, 2, 1))
+        labels = np.concatenate(label_list, axis=0)
 
-        if classes:
-            labels = np.concatenate(label_list, axis=0)
-            data = np.array([ data[idx] for idx in range(data.shape[0]) if labels[idx] in classes ])
+        if filter:
+            idx = [ i for i in range(data.shape[0]) if labels[i] in filter ]
+            data = data[idx]
+            labels = [ filter.index(labels[i]) for i in idx ]
 
-        super().__init__(data, transform=transform)
+        if not with_labels:
+            labels = None
+
+        super().__init__(data, labels, transform=transform)
