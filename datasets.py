@@ -5,7 +5,6 @@ import os.path
 from os import listdir, mkdir
 
 import torch
-from torch.autograd import Variable
 from torch.utils.data import Dataset
 
 DATA_DIR = 'data'
@@ -36,7 +35,7 @@ class FromNpDataset(Dataset):
         label = one_hot(self.labels[idx], self.num_classes) if self.labels is not None else None
         if self.transform:
             sample = self.transform(sample)
-        res = Variable(torch.from_numpy(sample))
+        res = torch.from_numpy(sample)
         if label is not None:
             return res, label
         else:

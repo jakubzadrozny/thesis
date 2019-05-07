@@ -52,9 +52,7 @@ def one_hot(y, K):
 def gaussian_sample(z_mean, z_log_sigma2):
     z_sigma = torch.exp(0.5 * z_log_sigma2)
     epsilon = torch.randn_like(z_mean)
-    epsilon.mul_(z_sigma)
-    epsilon.add_(z_mean)
-    return epsilon
+    return epsilon*z_sigma + z_mean
 
 
 class SimplePointnetEncoder(nn.Module):
@@ -111,10 +109,10 @@ class VAE(nn.Module):
 
     def elbo_loss(self, x, mc_samples=1, lbd=0.0):
         z_mean, z_log_sigma2 = self.encode(x)
-        KL_loss = torch.mean(
-            torch.clamp(-0.5*(1.0 + z_log_sigma2 - z_mean.pow(2) - z_log_sigma2.exp()),
-                        min=lbd)
-        )
+        KL_loss = torch.mean(torch.clamp(
+            -0.5*torch.sum(1.0 + z_log_sigma2 - z_mean.pow(2) - z_log_sigma2.exp(), dim=1),
+            min=lbd
+        ))
 
         rec_loss = 0
         for i in range(mc_samples):
@@ -189,40 +187,39 @@ class M2(nn.Module):
         rec = self.decoder(y, z)
         return rec.view(shape)
 
-    def elbo_known_y(self, x, y, alpha=1.0, lbd=0.0, mc_samples=1):
+    def vectorized_elbo_known_y(self, x, y, lbd=0.0, mc_samples=1):
         z_mean, z_log_sigma2 = self.encode_z_based_on_y(x, y)
-        KL_loss = torch.mean(
-            torch.clamp(-0.5*(1.0 + z_log_sigma2 - z_mean.pow(2) - z_log_sigma2.exp()),
-                        min=lbd)
+        KL_loss = torch.clamp(
+            -0.5*torch.sum(1.0 + z_log_sigma2 - z_mean.pow(2) - z_log_sigma2.exp(), dim=1),
+            min=lbd
         )
         # y_penalty = -torch.log(torch.tensor(1/self.num_classes))
-
-        rec_loss = 0
+        rec_loss = []
         for i in range(mc_samples):
             rec = self.decode(z_mean, z_log_sigma2, y, x.shape)
-            rec_loss += torch.mean(cd(x, rec))
-        rec_loss /= mc_samples
+            rec_loss.append(cd(x, rec))
+        rec_loss = torch.stack(rec_loss, dim=1)
+        rec_loss = torch.mean(rec_loss, dim=1)
+        return rec_loss, KL_loss
 
-        if alpha > 0:
-            y_pred = self.encode_y(x)
-            clf_loss = -alpha*torch.mean(torch.log(torch.sum(y_pred * y, dim=1)))
-        else:
-            cls_loss = 0
-
-        return rec_loss + KL_loss + clf_loss, {
-                'rec': rec_loss.item(), 'KL': KL_loss.item(),
-                'clf': clf_loss.item() } #'y_pen': y_penalty.item() }
+    def elbo_known_y(self, x, y, alpha=1.0, lbd=0.0, mc_samples=1):
+        rec_loss, KL_loss = self.vectorized_elbo_known_y(x, y, lbd=lbd, mc_samples=mc_samples)
+        rec_loss = torch.mean(rec_loss)
+        KL_loss = torch.mean(KL_loss)
+        y_pred = self.encode_y(x)
+        clf_loss = -alpha*torch.mean(torch.log(torch.sum(y_pred * y, dim=1)))
+        return rec_loss + KL_loss + clf_loss, {'rec': rec_loss.item(), 'KL': KL_loss.item(), 'clf': clf_loss.item()}
 
     def elbo_unknown_y(self, x, lbd=0.0, mc_samples=1):
         y_pred = self.encode_y(x)
         losses = []
         N = x.shape[0]
-        for i in range(K):
-            y = one_hot(torch.full(N, i), self.num_classes)
-            elbo = self.elbo_known_y(x, y, alpha=0, lbd=lbd, mc_samples=mc_samples)
-            losses.append(elbo)
-        losses = torch.cat(losses, dim=1)
-        loss = -torch.sum(y_pred * losses, dim=1)
+        for i in range(self.num_classes):
+            y = one_hot(torch.full((N,), i, dtype=torch.long), self.num_classes)
+            rec_loss, KL_loss = self.vectorized_elbo_known_y(x, y, lbd=lbd, mc_samples=mc_samples)
+            losses.append(rec_loss + KL_loss)
+        losses = torch.stack(losses, dim=1)
+        loss = torch.sum(y_pred * losses, dim=1)
         entropy = torch.sum(y_pred * torch.log(y_pred), dim=1)
         return torch.mean(loss + entropy), {}
 
