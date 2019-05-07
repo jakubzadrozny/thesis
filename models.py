@@ -45,7 +45,7 @@ else:
 
 def one_hot(y, K):
     N = y.shape[0]
-    x = torch.zeros((N, K))
+    x = torch.zeros((N, K)).to(y.device)
     x[torch.arange(0, N, 1), y] = 1
     return x
 
@@ -215,7 +215,7 @@ class M2(nn.Module):
         losses = []
         N = x.shape[0]
         for i in range(self.num_classes):
-            y = one_hot(torch.full((N,), i, dtype=torch.long), self.num_classes)
+            y = one_hot(torch.full((N,), i, dtype=torch.long, device=x.device), self.num_classes)
             rec_loss, KL_loss = self.vectorized_elbo_known_y(x, y, lbd=lbd, mc_samples=mc_samples)
             losses.append(rec_loss + KL_loss)
         losses = torch.stack(losses, dim=1)

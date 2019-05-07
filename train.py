@@ -122,8 +122,8 @@ def train_m2(drop_labels=0.0):
     unlabeled_dataset = FromNpDataset(train_dataset.data[:t])
     labeled_dataset = FromNpDataset(train_dataset.data[t:], labels=train_dataset.labels[t:])
 
-    unlabeled_loader = DataLoader(unlabeled_dataset, batch_size=16, shuffle=True, num_workers=2)
-    labeled_loader = DataLoader(labeled_dataset, batch_size=16, shuffle=True, num_workers=2)
+    unlabeled_loader = DataLoader(unlabeled_dataset, batch_size=32, shuffle=True, num_workers=2)
+    labeled_loader = DataLoader(labeled_dataset, batch_size=32, shuffle=True, num_workers=2)
 
     model = M2(K, ENCODER_HIDDEN, DECODER_LAYERS)
     # if MULTIPLE_GPUS:
