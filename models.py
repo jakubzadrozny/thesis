@@ -61,10 +61,39 @@ class SimplePointnetEncoder(nn.Module):
         self.model = PointNetfeat()
         self.fc1 = nn.Linear(1024, hidden)
         self.fc2 = nn.Linear(hidden, latent)
+        self.bnorm1 = nn.BatchNorm1d(1024)
+        self.bnorm2 = nn.BatchNorm1d(hidden)
 
     def forward(self, x):
         x = F.relu(self.model(x)[0])
+        x = self.bnorm1(x)
         x = F.relu(self.fc1(x))
+        x = self.bnorm2(x)
+        x = self.fc2(x)
+        return x
+
+
+class PointnetSoftmaxEncoder(SimplePointnetEncoder):
+    def forward(self, x):
+        x = super().forward(x)
+        return F.log_softmax(x, dim=1)
+
+
+class ClassPointentEncoder(nn.Module):
+    def __init__(self, hidden, K, latent):
+        super().__init__()
+        self.feats = PointNetfeat()
+        self.fc1 = nn.Linear(1024 + K, hidden)
+        self.fc2 = nn.Linear(hidden, latent)
+        self.bnorm1 = nn.BatchNorm1d(1024)
+        self.bnorm2 = nn.BatchNorm1d(hidden)
+
+    def forward(self, x, y):
+        x = F.relu(self.feats(x)[0])
+        x = self.bnorm1(x)
+        x = torch.cat((x, y), dim=1)
+        x = F.relu(self.fc1(x))
+        x = self.bnorm2(x)
         x = self.fc2(x)
         return x
 
@@ -132,27 +161,6 @@ class VAE(nn.Module):
         model.load_state_dict(torch.load(os.path.join(MODELS_DIR, name+MODELS_EXT)))
         model.eval()
         return model
-
-
-class PointnetSoftmaxEncoder(SimplePointnetEncoder):
-    def forward(self, x):
-        x = super().forward(x)
-        return F.log_softmax(x, dim=1)
-
-
-class ClassPointentEncoder(nn.Module):
-    def __init__(self, hidden, K, latent):
-        super().__init__()
-        self.feats = PointNetfeat()
-        self.fc1 = nn.Linear(1024 + K, hidden)
-        self.fc2 = nn.Linear(hidden, latent)
-
-    def forward(self, x, y):
-        x = F.relu(self.feats(x)[0])
-        x = torch.cat((x, y), dim=1)
-        x = F.relu(self.fc1(x))
-        x = self.fc2(x)
-        return x
 
 
 class ClassMLPDecoder(MLPDecoder):
