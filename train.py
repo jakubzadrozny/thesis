@@ -127,4 +127,4 @@ def train_m2(drop_labels=0.0):
 
 
 if __name__ == '__main__':
-    train_m2(drop_labels=0.0)
+    train_m2(drop_labels=0.5)
