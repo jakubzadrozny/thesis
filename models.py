@@ -137,7 +137,7 @@ class VAE(nn.Module):
 class PointnetSoftmaxEncoder(SimplePointnetEncoder):
     def forward(self, x):
         x = super().forward(x)
-        return F.softmax(x, dim=1)
+        return F.log_softmax(x, dim=1)
 
 
 class ClassPointentEncoder(nn.Module):
@@ -202,26 +202,27 @@ class M2(nn.Module):
         rec_loss = torch.mean(rec_loss, dim=1)
         return rec_loss, KL_loss
 
-    def elbo_known_y(self, x, y, alpha=1.0, lbd=0.0, mc_samples=1):
+    def elbo_known_y(self, x, y, alpha=1.0, lbd=0.0, mc_samples=1, epsilon=1e-6):
         rec_loss, KL_loss = self.vectorized_elbo_known_y(x, y, lbd=lbd, mc_samples=mc_samples)
         rec_loss = torch.mean(rec_loss)
         KL_loss = torch.mean(KL_loss)
-        y_pred = self.encode_y(x)
-        clf_loss = -alpha*torch.mean(torch.log(torch.sum(y_pred * y, dim=1)))
+        log_prob_y = self.encode_y(x)
+        clf_loss = -alpha*torch.mean(torch.sum(log_prob_y * y, dim=1))
         return rec_loss + KL_loss + clf_loss, {'rec': rec_loss.item(), 'KL': KL_loss.item(), 'clf': clf_loss.item()}
 
     def elbo_unknown_y(self, x, lbd=0.0, mc_samples=1):
-        y_pred = self.encode_y(x)
+        log_prob_y = self.encode_y(x)
+        prob_y = torch.exp(log_prob_y)
         losses = []
         N = x.shape[0]
         for i in range(self.num_classes):
             y = one_hot(torch.full((N,), i, dtype=torch.long, device=x.device), self.num_classes)
             rec_loss, KL_loss = self.vectorized_elbo_known_y(x, y, lbd=lbd, mc_samples=mc_samples)
             losses.append(rec_loss + KL_loss)
-        losses = torch.stack(losses, dim=1)
-        loss = torch.sum(y_pred * losses, dim=1)
-        entropy = torch.sum(y_pred * torch.log(y_pred), dim=1)
-        return torch.mean(loss + entropy), {}
+        loss_guessed_y = torch.stack(losses, dim=1)
+        loss = torch.mean(torch.sum(prob_y * loss_guessed_y, dim=1))
+        entropy = torch.mean(torch.sum(prob_y * log_prob_y, dim=1))
+        return loss + entropy, {'loss': loss, 'entropy': entropy}
 
     def save_to_drive(self, name=MODEL_DEFAULT_NAME):
         torch.save(self.state_dict(), os.path.join(MODELS_DIR, name+MODELS_EXT))

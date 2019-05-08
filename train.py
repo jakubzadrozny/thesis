@@ -8,7 +8,6 @@ from models import VAE, M2, ENCODER_HIDDEN, DECODER_LAYERS
 
 INF = 1e60
 USE_CUDA = torch.cuda.is_available()
-# MULTIPLE_GPUS = torch.cuda.device_count() > 1
 
 def train_unsupervised(model, optimizer, loader, mc_samples=1, lbd=0.0, num_epochs=100):
     print('Training your model!\n')
@@ -29,9 +28,6 @@ def train_unsupervised(model, optimizer, loader, mc_samples=1, lbd=0.0, num_epoc
                 global_step += 1
                 optimizer.zero_grad()
 
-                # if MULTIPLE_GPUS:
-                    # loss, stats = model.module.elbo_loss(batch, mc_samples=mc_samples, lbd=lbd)
-                # else:
                 loss, stats = model.elbo_loss(batch, mc_samples=mc_samples, lbd=lbd)
 
                 loss.backward()
@@ -107,31 +103,28 @@ def train_vae():
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4)
 
     model = VAE(ENCODER_HIDDEN, DECODER_LAYERS)
-    # if MULTIPLE_GPUS:
-    #     model = nn.DataParallel(model)
     optimizer = Adam(model.parameters(), lr=2e-4)
 
-    train_unsupervised(model, optimizer, train_loader, lbd=0.5, num_epochs=2000)
+    train_unsupervised(model, optimizer, train_loader, lbd=1.0, num_epochs=2000)
 
 
 def train_m2(drop_labels=0.0):
     K = len(FAVOURITE_CLASSES)
 
     train_dataset = ModelnetDataset(with_labels=True, filter=FAVOURITE_CLASSES)
-    t = int(len(train_dataset) * drop_labels)
-    unlabeled_dataset = FromNpDataset(train_dataset.data[:t])
-    labeled_dataset = FromNpDataset(train_dataset.data[t:], labels=train_dataset.labels[t:])
+    N = len(train_dataset)
+    t = int(N * drop_labels)
+    unlabeled_dataset = FromNpDataset(train_dataset.data[:min(N, t+1)])
+    labeled_dataset = FromNpDataset(train_dataset.data[max(0, t-1):], labels=train_dataset.labels[t:])
 
-    unlabeled_loader = DataLoader(unlabeled_dataset, batch_size=32, shuffle=True, num_workers=2)
-    labeled_loader = DataLoader(labeled_dataset, batch_size=32, shuffle=True, num_workers=2)
+    unlabeled_loader = DataLoader(unlabeled_dataset, batch_size=16, shuffle=True, num_workers=2)
+    labeled_loader = DataLoader(labeled_dataset, batch_size=16, shuffle=True, num_workers=2)
 
     model = M2(K, ENCODER_HIDDEN, DECODER_LAYERS)
-    # if MULTIPLE_GPUS:
-    #     model = nn.DataParallel(model)
     optimizer = Adam(model.parameters(), lr=2e-4)
 
-    train_semisupervised(model, optimizer, labeled_loader, unlabeled_loader, p=drop_labels, lbd=0.5, num_epochs=2000)
+    train_semisupervised(model, optimizer, labeled_loader, unlabeled_loader, p=drop_labels, lbd=1.0, num_epochs=2000)
 
 
 if __name__ == '__main__':
-    train_m2(drop_labels=0.5)
+    train_m2(drop_labels=1.0)
