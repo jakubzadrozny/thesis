@@ -115,7 +115,7 @@ def train_m2(drop_labels=0.0):
     N = len(train_dataset)
     t = int(N * drop_labels)
     unlabeled_dataset = FromNpDataset(train_dataset.data[:min(N, t+1)])
-    labeled_dataset = FromNpDataset(train_dataset.data[max(0, t-1):], labels=train_dataset.labels[t:])
+    labeled_dataset = FromNpDataset(train_dataset.data[max(0, t-1):], labels=train_dataset.labels[max(0, t-1)::])
 
     unlabeled_loader = DataLoader(unlabeled_dataset, batch_size=16, shuffle=True, num_workers=2)
     labeled_loader = DataLoader(labeled_dataset, batch_size=16, shuffle=True, num_workers=2)
