@@ -230,7 +230,7 @@ class M2(nn.Module):
         loss_guessed_y = torch.stack(losses, dim=1)
         loss = torch.mean(torch.sum(prob_y * loss_guessed_y, dim=1))
         entropy = torch.mean(torch.sum(prob_y * log_prob_y, dim=1))
-        return loss + entropy, {'loss': loss, 'entropy': entropy}
+        return loss + entropy, {'loss': loss.item(), 'entropy': entropy.item()}
 
     def save_to_drive(self, name=MODEL_DEFAULT_NAME):
         torch.save(self.state_dict(), os.path.join(MODELS_DIR, name+MODELS_EXT))

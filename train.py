@@ -100,7 +100,7 @@ def train_semisupervised(model, optimizer, labeled_loader, unlabeled_loader, p=0
 
 def train_vae():
     train_dataset = ModelnetDataset(filter=[FAVOURITE_CLASS])
-    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4, drop_last=True)
 
     model = VAE(ENCODER_HIDDEN, DECODER_LAYERS)
     optimizer = Adam(model.parameters(), lr=2e-4)
@@ -117,8 +117,8 @@ def train_m2(drop_labels=0.0):
     unlabeled_dataset = FromNpDataset(train_dataset.data[:min(N, t+1)])
     labeled_dataset = FromNpDataset(train_dataset.data[max(0, t-1):], labels=train_dataset.labels[max(0, t-1)::])
 
-    unlabeled_loader = DataLoader(unlabeled_dataset, batch_size=16, shuffle=True, num_workers=2)
-    labeled_loader = DataLoader(labeled_dataset, batch_size=16, shuffle=True, num_workers=2)
+    unlabeled_loader = DataLoader(unlabeled_dataset, batch_size=16, shuffle=True, num_workers=2, drop_last=True)
+    labeled_loader = DataLoader(labeled_dataset, batch_size=16, shuffle=True, num_workers=2, drop_last=True)
 
     model = M2(K, ENCODER_HIDDEN, DECODER_LAYERS)
     optimizer = Adam(model.parameters(), lr=2e-4)
@@ -127,4 +127,4 @@ def train_m2(drop_labels=0.0):
 
 
 if __name__ == '__main__':
-    train_m2(drop_labels=0.5)
+    train_m2(drop_labels=0.0)
