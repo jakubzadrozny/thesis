@@ -12,7 +12,7 @@ DATA_FILE_BASE = 'ply_data_train'
 DATA_FILE_EXT = '.h5'
 
 FAVOURITE_CLASS = 8
-FAVOURITE_CLASSES = [0, 2, 4, 8, 30]
+FAVOURITE_CLASSES = [0, 8, 30]
 
 def one_hot(y, K):
     x = torch.zeros(K)

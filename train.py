@@ -121,9 +121,9 @@ def train_m2(drop_labels=0.0):
     labeled_loader = DataLoader(labeled_dataset, batch_size=16, shuffle=True, num_workers=2, drop_last=True)
 
     model = M2(K, ENCODER_HIDDEN, DECODER_LAYERS)
-    optimizer = Adam(model.parameters(), lr=2e-4)
+    optimizer = Adam(model.parameters(), lr=1e-4)
 
-    train_semisupervised(model, optimizer, labeled_loader, unlabeled_loader, p=drop_labels, lbd=1.0, num_epochs=2000)
+    train_semisupervised(model, optimizer, labeled_loader, unlabeled_loader, p=drop_labels, lbd=3.0, num_epochs=2000)
 
 
 if __name__ == '__main__':
