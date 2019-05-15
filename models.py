@@ -246,7 +246,7 @@ class M2(nn.Module):
             -0.5*torch.sum(1.0 + z_log_sigma2 - z_mean.pow(2) - z_log_sigma2.exp(), dim=1),
             min=lbd
         )
-        y_penalty = -torch.log(torch.tensor(1/self.num_classes))
+        y_penalty = -torch.log(torch.tensor(1/self.num_classes)).to(y.device)
         rec_loss = []
         for i in range(mc_samples):
             rec = self.decode(z_mean, z_log_sigma2, y, x.shape)

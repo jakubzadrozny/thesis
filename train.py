@@ -109,8 +109,8 @@ def train_m2(model, train_dataset, drop_labels=0.0):
     t = int(torch.clamp(torch.tensor(N * drop_labels), 1, N-1).item())
     unlabeled_dataset, labeled_dataset = random_split(train_dataset, (t, N-t))
 
-    unlabeled_loader = DataLoader(unlabeled_dataset, batch_size=16, shuffle=True, num_workers=2, drop_last=True)
-    labeled_loader = DataLoader(labeled_dataset, batch_size=16, shuffle=True, num_workers=2, drop_last=True)
+    unlabeled_loader = DataLoader(unlabeled_dataset, batch_size=32, shuffle=True, num_workers=2, drop_last=True)
+    labeled_loader = DataLoader(labeled_dataset, batch_size=32, shuffle=True, num_workers=2, drop_last=True)
 
     optimizer = Adam(model.parameters(), lr=1e-4)
     train_semisupervised(model, optimizer, labeled_loader, unlabeled_loader,
