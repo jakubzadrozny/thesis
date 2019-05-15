@@ -115,6 +115,46 @@ class MLPDecoder(nn.Module):
         return self.fc[-1](x)
 
 
+class ClassMLPDecoder(nn.Module):
+    def __init__(self, K, dims):
+        super().__init__()
+        self.y_transform = nn.Linear(K, dims[1])
+        self.z_transform = nn.Linear(dims[0], dims[1])
+        self.tail = MLPDecoder(dims[1:])
+
+    def forward(self, y, z):
+        y = self.y_transform(y)
+        z = self.z_transform(z)
+        h = F.relu(y + z)
+        return self.tail(h)
+
+
+class ModifiedMLPDecoder(nn.Module):
+    def __init__(self, K, dims):
+        self.y_to_mean = nn.Linear(K, dims[0])
+        self.y_to_cov = nn.Linear(K, dims[0])
+        self.tail = MLPDecoder(dims)
+
+    def forward(self, y, z):
+        mean = self.y_to_mean(y)
+        cov_diag = torch.sqrt(F.softplus(self.y_to_cov(y)))
+        cov_mat = torch.diag(cov_diag)
+        noise = torch.matmul(z, cov_mat)
+        h = F.relu(mean + noise)
+        return self.tail(h)
+
+# class SoftmaxClassMLPDecoder(ClassMLPDecoder):
+#     def forward(self, x, y):
+#         x = super().forward(x, y)
+#         return F.softmax(x, dim=1)
+#
+#
+# class MLPSoftmaxEncoder(MLPDecoder):
+#     def forward(self, x):
+#         x = super().forward(x)
+#         return F.log_softmax(x, dim=1)
+
+
 class VAE(nn.Module):
     def __init__(self, hidden, decoder_dims):
         super().__init__()
@@ -163,24 +203,18 @@ class VAE(nn.Module):
         return model
 
 
-class ClassMLPDecoder(MLPDecoder):
-    def __init__(self, K, dims):
-        dims[0] += K
-        super().__init__(dims)
-
-    def forward(self, x, y):
-        return super().forward(torch.cat((x, y), dim=1))
-
-
 class M2(nn.Module):
     def __init__(self, K, hidden, decoder_dims):
         super().__init__()
         latent = decoder_dims[0]
         self.num_classes = K
+        # self.class_encoder = MLPSoftmaxEncoder([784, 2048, 2048, K])
+        # self.sigma_encoder = MLPDecoder([784, 2048, 2048, 50])
+        # self.mean_encoder = ClassMLPDecoder(K, [784, 2048, 2048, 50])
         self.class_encoder = PointnetSoftmaxEncoder(hidden, K)
         self.sigma_encoder = SimplePointnetEncoder(hidden, latent)
         self.mean_encoder = ClassPointentEncoder(hidden, K, latent)
-        self.decoder = ClassMLPDecoder(K, decoder_dims)
+        self.decoder = ClassMLPDecoder(K, DECODER_LAYERS)
 
     def encode_y(self, x):
         return self.class_encoder(x)
@@ -206,6 +240,7 @@ class M2(nn.Module):
         for i in range(mc_samples):
             rec = self.decode(z_mean, z_log_sigma2, y, x.shape)
             rec_loss.append(cd(x, rec))
+            # rec_loss.append(torch.mean(F.binary_cross_entropy(rec, x, reduction='none'), dim=1))
         rec_loss = torch.stack(rec_loss, dim=1)
         rec_loss = torch.mean(rec_loss, dim=1)
         return rec_loss, KL_loss
@@ -241,3 +276,9 @@ class M2(nn.Module):
         model.load_state_dict(torch.load(os.path.join(MODELS_DIR, name+MODELS_EXT)))
         model.eval()
         return model
+
+
+class ModifiedM2(M2):
+    def __init__(K, hidden, decoder_dims):
+        super().__init__(K, hidden, decoder_dims)
+        self.decoder = ModifiedMLPDecoder(K, DECODER_LAYERS)

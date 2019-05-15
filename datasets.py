@@ -6,6 +6,7 @@ from os import listdir, mkdir
 
 import torch
 from torch.utils.data import Dataset
+from torchvision import datasets, transforms
 
 DATA_DIR = 'data'
 DATA_FILE_BASE = 'ply_data_train'
@@ -20,11 +21,10 @@ def one_hot(y, K):
     return x
 
 class FromNpDataset(Dataset):
-    def __init__(self, np_data, labels=None, transform=None):
+    def __init__(self, np_data, labels, transform=None):
         self.data = np_data
         self.labels = labels
-        if labels:
-            self.num_classes = len(set(labels))
+        self.num_classes = len(set(labels))
         self.transform = transform
 
     def __len__(self):
@@ -32,14 +32,11 @@ class FromNpDataset(Dataset):
 
     def __getitem__(self, idx):
         sample = self.data[idx]
-        label = one_hot(self.labels[idx], self.num_classes) if self.labels is not None else None
+        label = one_hot(self.labels[idx], self.num_classes)
         if self.transform:
             sample = self.transform(sample)
         res = torch.from_numpy(sample)
-        if label is not None:
-            return res, label
-        else:
-            return res
+        return res, label
 
 
 class ModelnetDataset(FromNpDataset):
@@ -52,7 +49,7 @@ class ModelnetDataset(FromNpDataset):
         'https://drive.google.com/uc?export=download&id=1UlcrapAbSBRDhCNVsuPMEaEAcvDXxOLY',
     ]
 
-    def __init__(self, with_labels=False, filter=None, transform=None):
+    def __init__(self, filter=None, transform=None):
         if not os.path.isdir(DATA_DIR):
             os.mkdir(DATA_DIR)
 
@@ -78,7 +75,17 @@ class ModelnetDataset(FromNpDataset):
             data = data[idx]
             labels = [ filter.index(labels[i]) for i in idx ]
 
-        if not with_labels:
-            labels = None
-
         super().__init__(data, labels, transform=transform)
+
+
+def MNIST(Dataset):
+    def __init__(self):
+        self.num_classes = 10
+        self.dataset = datasets.MNIST('data/', download=True, transform=transforms.ToTensor())
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        x, y = self.dataset[idx]
+        return x.flatten(), one_hot(y, self.num_classes)
