@@ -78,7 +78,7 @@ class ModelnetDataset(FromNpDataset):
         super().__init__(data, labels, transform=transform)
 
 
-def MNIST(Dataset):
+class MNIST(Dataset):
     def __init__(self):
         self.num_classes = 10
         self.dataset = datasets.MNIST('data/', download=True, transform=transforms.ToTensor())

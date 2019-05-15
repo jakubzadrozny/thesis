@@ -12,6 +12,10 @@ ENCODER_HIDDEN = 1024
 OUT_POINTS = 2048
 DECODER_LAYERS = [LATENT, 512, 1024, 1024, 2048, 3*OUT_POINTS]
 
+MNIST_LATENT = 20
+MNIST_HIDDEN = 500
+MNIST_INPUT_DIM = 784
+
 MODELS_DIR = 'trained'
 MODELS_EXT = '.dms'
 MODEL_DEFAULT_NAME = 'trained'
@@ -98,42 +102,36 @@ class ClassPointentEncoder(nn.Module):
         return x
 
 
-class MLPDecoder(nn.Module):
-    def __init__(self, dims):
-        """dims[0] sould be latent dim, dims[-1] prod of origin dims"""
+def prep_seq(*dims):
+    layers = []
+    for i in range(len(dims)-2):
+        layers.append(nn.Linear(dims[i], dims[i+1]))
+        layers.append(nn.ReLU())
+    layers.append(nn.Linear(dims[-2], dims[-1]))
+    return nn.Sequential(*layers)
+
+
+class ClassMLP(nn.Module):
+    def __init__(self, K, *layers):
         super().__init__()
-        self.fc = nn.ModuleList([])
+        self.tail = prep_seq(layers[0]+K, *layers[1:])
 
-        prev = dims[0]
-        for nxt in dims[1:]:
-            self.fc.append(nn.Linear(prev, nxt))
-            prev = nxt
-
-    def forward(self, x):
-        for layer in self.fc[:-1]:
-            x = F.relu(layer(x))
-        return self.fc[-1](x)
+    def forward(self, x, y):
+        x = torch.cat((x, y), dim=1)
+        return self.tail(x)
 
 
-class ClassMLPDecoder(nn.Module):
-    def __init__(self, K, dims):
-        super().__init__()
-        self.y_transform = nn.Linear(K, dims[1])
-        self.z_transform = nn.Linear(dims[0], dims[1])
-        self.tail = MLPDecoder(dims[1:])
-
-    def forward(self, y, z):
-        y = self.y_transform(y)
-        z = self.z_transform(z)
-        h = F.relu(y + z)
-        return self.tail(h)
+class SigmoidClassMLP(ClassMLP):
+    def forward(self, x, y):
+        x = super().forward(x, y)
+        return torch.sigmoid(x)
 
 
-class ModifiedMLPDecoder(nn.Module):
+class ModifiedMLP(nn.Module):
     def __init__(self, K, dims):
         self.y_to_mean = nn.Linear(K, dims[0])
         self.y_to_cov = nn.Linear(K, dims[0])
-        self.tail = MLPDecoder(dims)
+        self.tail = prep_seq(*dims)
 
     def forward(self, y, z):
         mean = self.y_to_mean(y)
@@ -143,17 +141,6 @@ class ModifiedMLPDecoder(nn.Module):
         h = F.relu(mean + noise)
         return self.tail(h)
 
-# class SoftmaxClassMLPDecoder(ClassMLPDecoder):
-#     def forward(self, x, y):
-#         x = super().forward(x, y)
-#         return F.softmax(x, dim=1)
-#
-#
-# class MLPSoftmaxEncoder(MLPDecoder):
-#     def forward(self, x):
-#         x = super().forward(x)
-#         return F.log_softmax(x, dim=1)
-
 
 class VAE(nn.Module):
     def __init__(self, hidden, decoder_dims):
@@ -161,7 +148,7 @@ class VAE(nn.Module):
         latent = decoder_dims[0]
         self.mean_encoder = SimplePointnetEncoder(hidden, latent)
         self.sigma_encoder = SimplePointnetEncoder(hidden, latent)
-        self.decoder = MLPDecoder(decoder_dims)
+        self.decoder = prep_seq(*decoder_dims)
 
     def encode(self, x):
         return self.mean_encoder(x), self.sigma_encoder(x)
@@ -176,6 +163,9 @@ class VAE(nn.Module):
         rec = self.decode(z_mean, z_log_sigma2, x.shape)
         return rec, z_mean, z_log_sigma2
 
+    def rec_loss(self, x, rec):
+        return torch.mean(cd(x, rec))
+
     def elbo_loss(self, x, mc_samples=1, lbd=0.0):
         z_mean, z_log_sigma2 = self.encode(x)
         KL_loss = torch.mean(torch.clamp(
@@ -186,7 +176,7 @@ class VAE(nn.Module):
         rec_loss = 0
         for i in range(mc_samples):
             rec = self.decode(z_mean, z_log_sigma2, x.shape)
-            rec_loss += torch.mean(cd(x, rec))
+            rec_loss += self.rec_loss(x, rec)
         rec_loss /= mc_samples
 
         return (rec_loss + KL_loss,
@@ -203,18 +193,36 @@ class VAE(nn.Module):
         return model
 
 
+class MNISTVAE(VAE):
+    def __init__(self):
+        super(VAE, self).__init__()
+        self.mean_encoder = prep_seq(MNIST_INPUT_DIM, MNIST_HIDDEN, MNIST_HIDDEN, MNIST_LATENT)
+        self.sigma_encoder = prep_seq(MNIST_INPUT_DIM, MNIST_HIDDEN, MNIST_HIDDEN, MNIST_LATENT)
+        self.decoder = nn.Sequential(
+            prep_seq(MNIST_LATENT, MNIST_HIDDEN, MNIST_HIDDEN, MNIST_INPUT_DIM),
+            nn.Sigmoid(),
+        )
+
+    def rec_loss(self, x, rec):
+        return F.binary_cross_entropy(rec, x, reduction='sum') / x.shape[0]
+
+    @staticmethod
+    def load_from_drive(name=MODEL_DEFAULT_NAME):
+        model = MNISTVAE()
+        model.load_state_dict(torch.load(os.path.join(MODELS_DIR, name+MODELS_EXT)))
+        model.eval()
+        return model
+
+
 class M2(nn.Module):
     def __init__(self, K, hidden, decoder_dims):
         super().__init__()
         latent = decoder_dims[0]
         self.num_classes = K
-        # self.class_encoder = MLPSoftmaxEncoder([784, 2048, 2048, K])
-        # self.sigma_encoder = MLPDecoder([784, 2048, 2048, 50])
-        # self.mean_encoder = ClassMLPDecoder(K, [784, 2048, 2048, 50])
         self.class_encoder = PointnetSoftmaxEncoder(hidden, K)
         self.sigma_encoder = SimplePointnetEncoder(hidden, latent)
         self.mean_encoder = ClassPointentEncoder(hidden, K, latent)
-        self.decoder = ClassMLPDecoder(K, DECODER_LAYERS)
+        self.decoder = ClassMLP(K, decoder_dims)
 
     def encode_y(self, x):
         return self.class_encoder(x)
@@ -229,29 +237,32 @@ class M2(nn.Module):
         rec = self.decoder(y, z)
         return rec.view(shape)
 
+    def rec_loss(self, x, rec):
+        return cd(x, rec)
+
     def vectorized_elbo_known_y(self, x, y, lbd=0.0, mc_samples=1):
         z_mean, z_log_sigma2 = self.encode_z_based_on_y(x, y)
         KL_loss = torch.clamp(
             -0.5*torch.sum(1.0 + z_log_sigma2 - z_mean.pow(2) - z_log_sigma2.exp(), dim=1),
             min=lbd
         )
-        # y_penalty = -torch.log(torch.tensor(1/self.num_classes))
+        y_penalty = -torch.log(torch.tensor(1/self.num_classes))
         rec_loss = []
         for i in range(mc_samples):
             rec = self.decode(z_mean, z_log_sigma2, y, x.shape)
-            rec_loss.append(cd(x, rec))
-            # rec_loss.append(torch.mean(F.binary_cross_entropy(rec, x, reduction='none'), dim=1))
+            rec_loss.append(self.rec_loss(x, rec))
         rec_loss = torch.stack(rec_loss, dim=1)
         rec_loss = torch.mean(rec_loss, dim=1)
-        return rec_loss, KL_loss
+        return rec_loss, KL_loss, y_penalty
 
     def elbo_known_y(self, x, y, alpha=1.0, lbd=0.0, mc_samples=1, epsilon=1e-6):
-        rec_loss, KL_loss = self.vectorized_elbo_known_y(x, y, lbd=lbd, mc_samples=mc_samples)
+        rec_loss, KL_loss, y_penalty = self.vectorized_elbo_known_y(x, y, lbd=lbd, mc_samples=mc_samples)
         rec_loss = torch.mean(rec_loss)
         KL_loss = torch.mean(KL_loss)
+        y_penalty = torch.mean(y_penalty)
         log_prob_y = self.encode_y(x)
         clf_loss = -alpha*torch.mean(torch.sum(log_prob_y * y, dim=1))
-        return rec_loss + KL_loss + clf_loss, {'rec': rec_loss.item(), 'KL': KL_loss.item(), 'clf': clf_loss.item()}
+        return rec_loss + KL_loss + y_penalty + clf_loss, {'rec': rec_loss.item(), 'KL': KL_loss.item(), 'clf': clf_loss.item(), 'y_pen': y_penalty.item()}
 
     def elbo_unknown_y(self, x, lbd=0.0, mc_samples=1):
         log_prob_y = self.encode_y(x)
@@ -260,8 +271,8 @@ class M2(nn.Module):
         N = x.shape[0]
         for i in range(self.num_classes):
             y = one_hot(torch.full((N,), i, dtype=torch.long, device=x.device), self.num_classes)
-            rec_loss, KL_loss = self.vectorized_elbo_known_y(x, y, lbd=lbd, mc_samples=mc_samples)
-            losses.append(rec_loss + KL_loss)
+            rec_loss, KL_loss, y_penalty = self.vectorized_elbo_known_y(x, y, lbd=lbd, mc_samples=mc_samples)
+            losses.append(rec_loss + KL_loss + y_penalty)
         loss_guessed_y = torch.stack(losses, dim=1)
         loss = torch.mean(torch.sum(prob_y * loss_guessed_y, dim=1))
         entropy = -torch.mean(torch.sum(prob_y * log_prob_y, dim=1))
@@ -273,6 +284,31 @@ class M2(nn.Module):
     @staticmethod
     def load_from_drive(K, hidden, decoder_dims, name=MODEL_DEFAULT_NAME):
         model = M2(K, hidden, decoder_dims)
+        model.load_state_dict(torch.load(os.path.join(MODELS_DIR, name+MODELS_EXT)))
+        model.eval()
+        return model
+
+
+class MNISTM2(M2):
+    def __init__(self):
+        super(M2, self).__init__()
+        self.num_classes = 10
+        self.class_encoder = nn.Sequential(
+            prep_seq(MNIST_INPUT_DIM, MNIST_HIDDEN, MNIST_HIDDEN, self.num_classes),
+            nn.LogSoftmax(dim=1),
+        )
+        self.sigma_encoder = prep_seq(MNIST_INPUT_DIM, MNIST_HIDDEN, MNIST_HIDDEN, MNIST_LATENT)
+        self.mean_encoder = ClassMLP(self.num_classes,
+                                     MNIST_INPUT_DIM, MNIST_HIDDEN, MNIST_HIDDEN, MNIST_LATENT)
+        self.decoder = SigmoidClassMLP(self.num_classes,
+                                       MNIST_LATENT, MNIST_HIDDEN, MNIST_HIDDEN, MNIST_INPUT_DIM)
+
+    def rec_loss(self, x, rec):
+        return torch.sum(F.binary_cross_entropy(rec, x, reduction='none'), dim=1)
+
+    @staticmethod
+    def load_from_drive(name=MODEL_DEFAULT_NAME):
+        model = MNISTM2()
         model.load_state_dict(torch.load(os.path.join(MODELS_DIR, name+MODELS_EXT)))
         model.eval()
         return model

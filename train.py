@@ -4,7 +4,7 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader, random_split
 
 from datasets import ModelnetDataset, MNIST, FAVOURITE_CLASS, FAVOURITE_CLASSES
-from models import VAE, M2, ENCODER_HIDDEN, DECODER_LAYERS
+from models import VAE, MNISTVAE, M2, MNISTM2, ModifiedM2, ENCODER_HIDDEN, DECODER_LAYERS
 
 INF = 1e60
 USE_CUDA = torch.cuda.is_available()
@@ -97,13 +97,11 @@ def train_semisupervised(model, optimizer, labeled_loader, unlabeled_loader, p=0
     print('done.')
 
 
-def train_vae(train_dataset):
+def train_vae(model, train_dataset):
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4, drop_last=True)
 
-    model = VAE(ENCODER_HIDDEN, DECODER_LAYERS)
     optimizer = Adam(model.parameters(), lr=1e-4)
-
-    train_unsupervised(model, optimizer, train_loader, lbd=1.0, num_epochs=2000)
+    train_unsupervised(model, optimizer, train_loader, lbd=0.0, num_epochs=2000)
 
 
 def train_m2(model, train_dataset, drop_labels=0.0):
@@ -116,10 +114,12 @@ def train_m2(model, train_dataset, drop_labels=0.0):
 
     optimizer = Adam(model.parameters(), lr=1e-4)
     train_semisupervised(model, optimizer, labeled_loader, unlabeled_loader,
-                        p=drop_labels, lbd=1.0, num_epochs=2000)
+                        p=drop_labels, lbd=0.0, num_epochs=2000)
 
 
 if __name__ == '__main__':
-    train_dataset = ModelnetDataset(filter=FAVOURITE_CLASSES)
-    model = M2(train_dataset.num_classes, ENCODER_HIDDEN, DECODER_LAYERS)
-    train_m2(model, train_dataset, drop_labels=0.0)
+    # train_dataset = ModelnetDataset(filter=FAVOURITE_CLASSES)
+    # model = M2(train_dataset.num_classes, ENCODER_HIDDEN, DECODER_LAYERS)
+    train_dataset = MNIST()
+    model = MNISTM2()
+    train_m2(model, train_dataset, drop_labels=0.5)
