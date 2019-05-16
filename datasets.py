@@ -79,13 +79,16 @@ class ModelnetDataset(FromNpDataset):
 
 
 class MNIST(Dataset):
-    def __init__(self):
+    def __init__(self, train=True):
         self.num_classes = 10
-        self.dataset = datasets.MNIST('data/', download=True, transform=transforms.ToTensor())
+        self.dataset = datasets.MNIST('data/', download=True, train=train, transform=transforms.ToTensor())
+        self.train = train
 
     def __len__(self):
         return len(self.dataset)
 
     def __getitem__(self, idx):
         x, y = self.dataset[idx]
-        return x.flatten(), one_hot(y, self.num_classes)
+        if self.train:
+            y = one_hot(y, self.num_classes)
+        return x.flatten(), y
