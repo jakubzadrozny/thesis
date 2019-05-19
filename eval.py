@@ -8,12 +8,13 @@ from m2 import M2, MNISTM2, ModifiedM2, MNISTModifiedM2
 device = torch.device('cuda:3') if torch.cuda.is_available() else torch.device('cpu')
 
 def eval_model(model, dataset):
+    model.eval()
     loader = DataLoader(dataset, batch_size=32, num_workers=2, drop_last=True)
     N = 0
     score = 0
     for x, y in loader:
-        x.to(device)
-        y.to(device)
+        x = x.to(device)
+        y = y.to(device)
 
         pred = model.classify(x)
         score += torch.sum(pred == y)

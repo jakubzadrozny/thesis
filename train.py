@@ -14,7 +14,6 @@ device = torch.device('cuda:3') if torch.cuda.is_available() else torch.device('
 def train_unsupervised(model, optimizer, loader, num_epochs=1000, M=1, lbd=0.0, log_every=200):
     print('Training your model!\n')
     model.train()
-    model.to(device)
 
     global_step = 0
     best_params = None
@@ -23,7 +22,7 @@ def train_unsupervised(model, optimizer, loader, num_epochs=1000, M=1, lbd=0.0, 
     try:
         for epoch in range(num_epochs):
             for inum, (x, _) in enumerate(loader):
-                x.to(device)
+                x = x.to(device)
 
                 global_step += 1
                 optimizer.zero_grad()
@@ -40,9 +39,9 @@ def train_unsupervised(model, optimizer, loader, num_epochs=1000, M=1, lbd=0.0, 
     except KeyboardInterrupt:
         pass
 
-    model.to('cpu')
     model.eval()
     print('Saving model to drive...', end='')
+    model.cpu()
     model.save_to_drive()
     print('done.')
 
@@ -50,7 +49,6 @@ def train_unsupervised(model, optimizer, loader, num_epochs=1000, M=1, lbd=0.0, 
 def train_semisupervised(model, optimizer, labeled_loader, unlabeled_loader, num_epochs=1000, p=0.0, M=1, lbd=0.0, log_every=200):
     print('Training your model!\n')
     model.train()
-    model.to(device)
 
     global_step = 0
     best_params = None
@@ -69,8 +67,8 @@ def train_semisupervised(model, optimizer, labeled_loader, unlabeled_loader, num
 
                 try:
                     x, y = next(draw_from)
-                    x.to(device)
-                    y.to(device)
+                    x = x.to(device)
+                    y = y.to(device)
                 except StopIteration:
                     break
 
@@ -88,9 +86,9 @@ def train_semisupervised(model, optimizer, labeled_loader, unlabeled_loader, num
     except KeyboardInterrupt:
         pass
 
-    model.to('cpu')
     model.eval()
     print('Saving model to drive...', end='')
+    model.cpu()
     model.save_to_drive()
     print('done.')
 
@@ -122,4 +120,6 @@ if __name__ == '__main__':
     # model = MNISTM2()
     # train_m2(model, train_dataset, drop_labels=0.5, log_every=20)
     model = MNISTGMVAE()
+
+    model.to(device)
     train_vae(model, train_dataset)
