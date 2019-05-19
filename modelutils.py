@@ -9,37 +9,39 @@ from pointnet import PointNetfeat
 MODELS_DIR = 'trained'
 MODELS_EXT = '.dms'
 
+def cd(x, y):
+    pass
 
-if torch.cuda.is_available():
-    from chamfer_distance import ChamferDistance
-    cdist = ChamferDistance()
-    def cd(x, y):
-        x = x.permute(0, 2, 1)
-        y = y.permute(0, 2, 1)
-        d1, d2 = cdist(x, y)
-        return torch.sum(d1, dim=1) + torch.sum(d2, dim=1)
-else:
-    def cd(S, T):
-        S = S.permute(0, 2, 1).unsqueeze(2)
-        T = T.permute(0, 2, 1).unsqueeze(1)
-
-        # S_center = S.mean(dim=1, keepdim=True)
-        # T_center = T.mean(dim=1, keepdim=True)
-
-        d = torch.sum(torch.pow(S - T, 2), dim=3)
-        # d1_cener = torch.sum(torch.pow(S - S_center, 2), dim=3)
-        # d2_center = torch.sum(torch.pow(T - T_center, 2), dim=3)
-
-        # d1 = torch.sum( d1_center * torch.min(d, dim=2)[0], dim=1 )
-        # d2 = torch.sum( d2_center * torch.min(d, dim=1)[0], dim=1 )
-        d1 = torch.sum(torch.min(d, dim=2)[0], dim=1)
-        d2 = torch.sum(torch.min(d, dim=1)[0], dim=1)
-
-        return d1+d2
+# if torch.cuda.is_available():
+#     from chamfer_distance import ChamferDistance
+#     cdist = ChamferDistance()
+#     def cd(x, y):
+#         x = x.permute(0, 2, 1)
+#         y = y.permute(0, 2, 1)
+#         d1, d2 = cdist(x, y)
+#         return torch.sum(d1, dim=1) + torch.sum(d2, dim=1)
+# else:
+#     def cd(S, T):
+#         S = S.permute(0, 2, 1).unsqueeze(2)
+#         T = T.permute(0, 2, 1).unsqueeze(1)
+#
+#         # S_center = S.mean(dim=1, keepdim=True)
+#         # T_center = T.mean(dim=1, keepdim=True)
+#
+#         d = torch.sum(torch.pow(S - T, 2), dim=3)
+#         # d1_cener = torch.sum(torch.pow(S - S_center, 2), dim=3)
+#         # d2_center = torch.sum(torch.pow(T - T_center, 2), dim=3)
+#
+#         # d1 = torch.sum( d1_center * torch.min(d, dim=2)[0], dim=1 )
+#         # d2 = torch.sum( d2_center * torch.min(d, dim=1)[0], dim=1 )
+#         d1 = torch.sum(torch.min(d, dim=2)[0], dim=1)
+#         d2 = torch.sum(torch.min(d, dim=1)[0], dim=1)
+#
+#         return d1+d2
 
 def one_hot(y, K):
     N = y.shape[0]
-    x = torch.zeros((N, K)).to(y.device)
+    x = torch.zeros((N, K), device=y.device)
     x[torch.arange(0, N, 1), y] = 1
     return x
 

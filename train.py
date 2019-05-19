@@ -8,13 +8,13 @@ from m2 import M2, MNISTM2, ModifiedM2, MNISTModifiedM2
 from gmvae import GMVAE, MNISTGMVAE
 
 INF = 1e60
-USE_CUDA = torch.cuda.is_available()
+
+device = torch.device('cuda:3') if torch.cuda.is_available() else torch.device('cpu')
 
 def train_unsupervised(model, optimizer, loader, num_epochs=1000, M=1, lbd=0.0, log_every=200):
     print('Training your model!\n')
     model.train()
-    if USE_CUDA:
-        model.cuda()
+    model.to(device)
 
     global_step = 0
     best_params = None
@@ -23,8 +23,7 @@ def train_unsupervised(model, optimizer, loader, num_epochs=1000, M=1, lbd=0.0, 
     try:
         for epoch in range(num_epochs):
             for inum, (x, _) in enumerate(loader):
-                if USE_CUDA:
-                    x = x.cuda()
+                x.to(device)
 
                 global_step += 1
                 optimizer.zero_grad()
@@ -51,8 +50,7 @@ def train_unsupervised(model, optimizer, loader, num_epochs=1000, M=1, lbd=0.0, 
 def train_semisupervised(model, optimizer, labeled_loader, unlabeled_loader, num_epochs=1000, p=0.0, M=1, lbd=0.0, log_every=200):
     print('Training your model!\n')
     model.train()
-    if USE_CUDA:
-        model.cuda()
+    model.to(device)
 
     global_step = 0
     best_params = None
@@ -71,11 +69,10 @@ def train_semisupervised(model, optimizer, labeled_loader, unlabeled_loader, num
 
                 try:
                     x, y = next(draw_from)
+                    x.to(device)
+                    y.to(device)
                 except StopIteration:
                     break
-                if USE_CUDA:
-                    x = x.cuda()
-                    y = y.cuda()
 
                 if drop_labels:
                     loss, stats = model.elbo_unknown_y(x, M=M, lbd=lbd)
