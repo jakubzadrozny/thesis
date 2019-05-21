@@ -6,12 +6,13 @@ from datasets import ModelnetDataset, MNIST, FAVOURITE_CLASS, FAVOURITE_CLASSES
 from vae import VAE, MNISTVAE
 from m2 import M2, MNISTM2, ModifiedM2, MNISTModifiedM2
 from gmvae import GMVAE, MNISTGMVAE
+from eval import eval_supervised, eval_unsupervised
 
 INF = 1e60
 
 device = torch.device('cuda:3') if torch.cuda.is_available() else torch.device('cpu')
 
-def train_unsupervised(model, optimizer, loader, num_epochs=1000, M=1, lbd=0.0, log_every=200):
+def train_unsupervised(model, optimizer, train_loader, test_loader=None, num_epochs=1000, M=1, lbd=0.0, log_every=500):
     print('Training your model!\n')
     model.train()
 
@@ -21,7 +22,7 @@ def train_unsupervised(model, optimizer, loader, num_epochs=1000, M=1, lbd=0.0, 
 
     try:
         for epoch in range(num_epochs):
-            for inum, (x, _) in enumerate(loader):
+            for inum, (x, _) in enumerate(train_loader):
                 x = x.to(device)
 
                 global_step += 1
@@ -35,6 +36,12 @@ def train_unsupervised(model, optimizer, loader, num_epochs=1000, M=1, lbd=0.0, 
                 if (global_step%log_every) == 1:
                     print("global step: %d (epoch: %d, step: %d), loss: %f %s" %
                           (global_step, epoch, inum, loss.item(), stats))
+
+            if test_loader:
+                model.eval()
+                score = eval_unsupervised(model, test_loader)
+                print("Epoch {}, acc: {}".format(epoch, score))
+                model.train()
 
     except KeyboardInterrupt:
         pass
@@ -93,11 +100,12 @@ def train_semisupervised(model, optimizer, labeled_loader, unlabeled_loader, num
     print('done.')
 
 
-def train_vae(model, train_dataset, log_every=200):
+def train_vae(model, train_dataset, test_dataset=None, log_every=200):
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4, drop_last=True)
+    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False) if test_dataset is not None else None
 
     optimizer = Adam(model.parameters(), lr=1e-4)
-    train_unsupervised(model, optimizer, train_loader, log_every=log_every)
+    train_unsupervised(model, optimizer, train_loader, test_loader=test_loader, log_every=log_every)
 
 
 def train_m2(model, train_dataset, drop_labels=0.0, log_every=200):
@@ -114,12 +122,8 @@ def train_m2(model, train_dataset, drop_labels=0.0, log_every=200):
 
 
 if __name__ == '__main__':
-    # train_dataset = ModelnetDataset(filter=FAVOURITE_CLASSES)
-    # model = M2(K=len(FAVOURITE_CLASSES))
     train_dataset = MNIST()
-    # model = MNISTM2()
-    # train_m2(model, train_dataset, drop_labels=0.5, log_every=20)
+    test_dataset = MNIST(train=False)
     model = MNISTGMVAE()
-
     model.to(device)
-    train_vae(model, train_dataset)
+    train_vae(model, train_dataset, test_dataset=test_dataset, log_every=500)
