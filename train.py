@@ -102,10 +102,10 @@ def train_semisupervised(model, optimizer, labeled_loader, unlabeled_loader, num
 
 def train_vae(model, train_dataset, test_dataset=None, log_every=200):
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4, drop_last=True)
-    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False) if test_dataset is not None else None
+    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False, num_workers=2, drop_last=True) if test_dataset is not None else None
 
     optimizer = Adam(model.parameters(), lr=1e-4)
-    train_unsupervised(model, optimizer, train_loader, test_loader=test_loader, log_every=log_every)
+    train_unsupervised(model, optimizer, train_loader, lbd=20.0, test_loader=test_loader, log_every=log_every)
 
 
 def train_m2(model, train_dataset, drop_labels=0.0, log_every=200):
@@ -122,8 +122,7 @@ def train_m2(model, train_dataset, drop_labels=0.0, log_every=200):
 
 
 if __name__ == '__main__':
-    train_dataset = MNIST()
-    test_dataset = MNIST(train=False)
-    model = MNISTGMVAE()
+    train_dataset = ModelnetDataset(filter=[FAVOURITE_CLASS])
+    model = VAE()
     model.to(device)
-    train_vae(model, train_dataset, test_dataset=test_dataset, log_every=500)
+    train_vae(model, train_dataset, log_every=200)

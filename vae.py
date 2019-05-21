@@ -5,9 +5,9 @@ import torch.nn.functional as F
 from modelutils import SimplePointnetEncoder, SaveableModule, prep_seq, cd, gaussian_sample
 
 LATENT = 128
-ENCODER_HIDDEN = 1024
+ENCODER_HIDDEN = 2048
 OUT_DIM = 3*2048
-DECODER_DIMS = [LATENT, 512, 1024, 1024, 2048, OUT_DIM]
+DECODER_DIMS = [LATENT, 1024, ENCODER_HIDDEN, ENCODER_HIDDEN, ENCODER_HIDDEN, OUT_DIM]
 
 MNIST_LATENT = 20
 MNIST_HIDDEN = 500
@@ -38,7 +38,7 @@ class VAE(SaveableModule):
         return rec, z_mean, z_log_sigma2
 
     def rec_loss(self, x, rec):
-        return torch.mean(cd(x, rec))
+        return torch.mean(cd(rec, x))
 
     def elbo_loss(self, x, M=1, lbd=0.0):
         z_mean, z_log_sigma2 = self.encode(x)
