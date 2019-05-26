@@ -22,7 +22,10 @@ class VAE(SaveableModule):
         super().__init__()
         self.mean_encoder = SimplePointnetEncoder(ENCODER_HIDDEN, LATENT)
         self.sigma_encoder = SimplePointnetEncoder(ENCODER_HIDDEN, LATENT)
-        self.decoder = prep_seq(*DECODER_DIMS)
+        self.decoder = nn.Sequential(
+            prep_seq(*DECODER_DIMS),
+            nn.Sigmoid(),
+        )
 
     def encode(self, x):
         return self.mean_encoder(x), self.sigma_encoder(x)
@@ -38,6 +41,7 @@ class VAE(SaveableModule):
         return rec, z_mean, z_log_sigma2
 
     def rec_loss(self, x, rec):
+        x = (x + 1.0) / 2
         return torch.mean(cd(rec, x))
 
     def elbo_loss(self, x, M=1, lbd=0.0):

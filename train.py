@@ -105,7 +105,7 @@ def train_vae(model, train_dataset, test_dataset=None, log_every=200):
     test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False, num_workers=2, drop_last=True) if test_dataset is not None else None
 
     optimizer = Adam(model.parameters(), lr=1e-4)
-    train_unsupervised(model, optimizer, train_loader, lbd=20.0,
+    train_unsupervised(model, optimizer, train_loader, lbd=0.0,
                        num_epochs=2000, test_loader=test_loader, log_every=log_every)
 
 
