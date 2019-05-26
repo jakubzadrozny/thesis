@@ -10,7 +10,7 @@ from eval import eval_supervised, eval_unsupervised
 
 INF = 1e60
 
-device = torch.device('cuda:3') if torch.cuda.is_available() else torch.device('cpu')
+device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
 
 def train_unsupervised(model, optimizer, train_loader, test_loader=None, num_epochs=1000, M=1, lbd=0.0, log_every=500):
     print('Training your model!\n')
@@ -105,7 +105,8 @@ def train_vae(model, train_dataset, test_dataset=None, log_every=200):
     test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False, num_workers=2, drop_last=True) if test_dataset is not None else None
 
     optimizer = Adam(model.parameters(), lr=1e-4)
-    train_unsupervised(model, optimizer, train_loader, lbd=20.0, test_loader=test_loader, log_every=log_every)
+    train_unsupervised(model, optimizer, train_loader, lbd=20.0,
+                       num_epochs=2000, test_loader=test_loader, log_every=log_every)
 
 
 def train_m2(model, train_dataset, drop_labels=0.0, log_every=200):
