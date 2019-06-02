@@ -20,15 +20,19 @@ class VAE(SaveableModule):
 
     def __init__(self):
         super().__init__()
-        self.mean_encoder = SimplePointnetEncoder(ENCODER_HIDDEN, LATENT)
-        self.sigma_encoder = SimplePointnetEncoder(ENCODER_HIDDEN, LATENT)
+        # self.mean_encoder = SimplePointnetEncoder(ENCODER_HIDDEN, LATENT)
+        # self.sigma_encoder = SimplePointnetEncoder(ENCODER_HIDDEN, LATENT)
+        self.encoder = prep_seq(OUT_DIM, ENCODER_HIDDEN, ENCODER_HIDDEN, ENCODER_HIDDEN, ENCODER_HIDDEN, 2*LATENT)
+        # self.mean_encoder = prep_seq(OUT_DIM, ENCODER_HIDDEN, ENCODER_HIDDEN, ENCODER_HIDDEN, ENCODER_HIDDEN, LATENT)
         self.decoder = nn.Sequential(
             prep_seq(*DECODER_DIMS),
             nn.Sigmoid(),
         )
 
     def encode(self, x):
-        return self.mean_encoder(x), self.sigma_encoder(x)
+        y = x.reshape(-1, OUT_DIM)
+        y = self.encoder(y)
+        return torch.chunk(y, 2, dim=1)
 
     def decode(self, z_mean, z_log_sigma2, shape):
         z = gaussian_sample(z_mean, z_log_sigma2)

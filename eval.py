@@ -6,7 +6,7 @@ from vae import VAE, MNISTVAE
 from m2 import M2, MNISTM2, ModifiedM2, MNISTModifiedM2
 from gmvae import GMVAE, MNISTGMVAE
 
-device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
+device = torch.device('cuda:1') if torch.cuda.is_available() else torch.device('cpu')
 
 
 def eval_supervised(model, loader):
