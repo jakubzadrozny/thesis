@@ -45,7 +45,6 @@ class VAE(SaveableModule):
         return rec, z_mean, z_log_sigma2
 
     def rec_loss(self, x, rec):
-        x = (x + 1.0) / 2
         return torch.mean(cd(rec, x))
 
     def elbo_loss(self, x, M=1, lbd=0.0):
