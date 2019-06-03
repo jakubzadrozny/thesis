@@ -26,7 +26,7 @@ class VAE(SaveableModule):
         # self.mean_encoder = prep_seq(OUT_DIM, ENCODER_HIDDEN, ENCODER_HIDDEN, ENCODER_HIDDEN, ENCODER_HIDDEN, LATENT)
         self.decoder = nn.Sequential(
             prep_seq(*DECODER_DIMS),
-            nn.Sigmoid(),
+            nn.Tanh(),
         )
 
     def encode(self, x):
