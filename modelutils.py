@@ -59,11 +59,13 @@ def gaussian_sample(z_mean, z_log_sigma2):
     return epsilon*z_sigma + z_mean
 
 
-def prep_seq(*dims):
+def prep_seq(*dims, bnorm=False):
     layers = []
     for i in range(len(dims)-2):
         layers.append(nn.Linear(dims[i], dims[i+1]))
         layers.append(nn.ReLU())
+        if bnorm:
+            layers.append(nn.BatchNorm1d(dims[i+1]))
     layers.append(nn.Linear(dims[-2], dims[-1]))
     return nn.Sequential(*layers)
 

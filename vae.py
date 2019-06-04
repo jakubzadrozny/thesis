@@ -5,9 +5,10 @@ import torch.nn.functional as F
 from modelutils import SimplePointnetEncoder, SaveableModule, prep_seq, cd, gaussian_sample
 
 LATENT = 128
-ENCODER_HIDDEN = 2048
+HIDDEN = 2048
 OUT_DIM = 3*2048
-DECODER_DIMS = [LATENT, 1024, ENCODER_HIDDEN, ENCODER_HIDDEN, OUT_DIM]
+ENCODER_DIMS = [OUT_DIM, HIDDEN, HIDDEN, HIDDEN, HIDDEN, 2*LATENT]
+DECODER_DIMS = [LATENT, HIDDEN, HIDDEN, HIDDEN, OUT_DIM]
 
 MNIST_LATENT = 20
 MNIST_HIDDEN = 500
@@ -16,52 +17,57 @@ MNIST_INPUT_DIM = 784
 
 class VAE(SaveableModule):
 
-    DEFAULT_SAVED_NAME = 'vae'
-
     def __init__(self):
         super().__init__()
-        # self.mean_encoder = SimplePointnetEncoder(ENCODER_HIDDEN, LATENT)
-        # self.sigma_encoder = SimplePointnetEncoder(ENCODER_HIDDEN, LATENT)
-        self.encoder = prep_seq(OUT_DIM, ENCODER_HIDDEN, ENCODER_HIDDEN, ENCODER_HIDDEN, ENCODER_HIDDEN, 2*LATENT)
-        # self.mean_encoder = prep_seq(OUT_DIM, ENCODER_HIDDEN, ENCODER_HIDDEN, ENCODER_HIDDEN, ENCODER_HIDDEN, LATENT)
-        self.decoder = nn.Sequential(
-            prep_seq(*DECODER_DIMS),
-            nn.Tanh(),
-        )
 
     def encode(self, x):
-        y = x.reshape(-1, OUT_DIM)
-        y = self.encoder(y)
-        return torch.chunk(y, 2, dim=1)
+        x = x.reshape(x.shape[0], -1)
+        x = self.encoder(x)
+        return torch.chunk(x, 2, dim=1)
 
-    def decode(self, z_mean, z_log_sigma2, shape):
+    def decode(self, z_mean, z_log_sigma2):
         z = gaussian_sample(z_mean, z_log_sigma2)
         rec = self.decoder(z)
-        return rec.view(shape)
+        return rec
 
     def forward(self, x):
         z_mean, z_log_sigma2 = self.encode(x)
-        rec = self.decode(z_mean, z_log_sigma2, x.shape)
+        rec = self.decode(z_mean, z_log_sigma2).view(x.shape)
         return rec, z_mean, z_log_sigma2
-
-    def rec_loss(self, x, rec):
-        return torch.mean(cd(rec, x))
 
     def elbo_loss(self, x, M=1, lbd=0.0):
         z_mean, z_log_sigma2 = self.encode(x)
         KL_loss = torch.mean(torch.clamp(
-            -0.5*torch.sum(1.0 + z_log_sigma2 - z_mean.pow(2) - z_log_sigma2.exp(), dim=1),
+            -0.5*torch.sum(1.0 + z_log_sigma2 - z_mean**2- torch.exp(z_log_sigma2), dim=1),
             min=lbd
         ))
 
         rec_loss = 0
         for i in range(M):
-            rec = self.decode(z_mean, z_log_sigma2, x.shape)
+            rec = self.decode(z_mean, z_log_sigma2).view(x.shape)
             rec_loss += self.rec_loss(x, rec)
         rec_loss /= M
 
         return (rec_loss + KL_loss,
                 {'rec': rec_loss.item(), 'KL': KL_loss.item()})
+
+
+class PCVAE(VAE):
+
+    DEFAULT_SAVED_NAME = 'pcvae'
+
+    def __init__(self):
+        super(VAE, self).__init__()
+        # self.mean_encoder = SimplePointnetEncoder(ENCODER_HIDDEN, LATENT)
+        # self.sigma_encoder = SimplePointnetEncoder(ENCODER_HIDDEN, LATENT)
+        self.encoder = prep_seq(*ENCODER_DIMS, bnorm=True)
+        self.decoder = nn.Sequential(
+            prep_seq(*DECODER_DIMS, bnorm=True),
+            nn.Tanh(),
+        )
+
+        def rec_loss(self, x, rec):
+            return torch.mean(cd(rec, x))
 
 
 class MNISTVAE(VAE):
