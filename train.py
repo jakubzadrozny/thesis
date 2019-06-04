@@ -10,7 +10,7 @@ from eval import eval_supervised, eval_unsupervised
 
 INF = 1e60
 
-device = torch.device('cuda:1') if torch.cuda.is_available() else torch.device('cpu')
+device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
 
 def train_unsupervised(model, optimizer, train_loader,
                        test_loader=None, num_epochs=1000, M=1, lbd=0.0, log_every=200):

@@ -10,7 +10,9 @@ from pointnet import PointNetfeat
 MODELS_DIR = 'trained'
 MODELS_EXT = '.dms'
 
-if False and torch.cuda.is_available():
+cuda_zero = True
+
+if cuda_zero and torch.cuda.is_available():
     from chamfer_distance import ChamferDistance
     cdist = ChamferDistance()
     def cd(x, y):
