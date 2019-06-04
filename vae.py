@@ -66,8 +66,8 @@ class PCVAE(VAE):
             nn.Tanh(),
         )
 
-        def rec_loss(self, x, rec):
-            return torch.mean(cd(rec, x))
+    def rec_loss(self, x, rec):
+        return torch.mean(cd(rec, x))
 
 
 class MNISTVAE(VAE):
