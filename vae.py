@@ -56,10 +56,11 @@ class PCVAE(VAE):
 
     DEFAULT_SAVED_NAME = 'pcvae'
 
-    def __init__(self):
+    def __init__(self, outvar=1e-3):
         super(VAE, self).__init__()
         # self.mean_encoder = SimplePointnetEncoder(ENCODER_HIDDEN, LATENT)
         # self.sigma_encoder = SimplePointnetEncoder(ENCODER_HIDDEN, LATENT)
+        self.outvar = outvar
         self.encoder = prep_seq(*ENCODER_DIMS, bnorm=True)
         self.decoder = nn.Sequential(
             prep_seq(*DECODER_DIMS, bnorm=True),
@@ -67,7 +68,7 @@ class PCVAE(VAE):
         )
 
     def rec_loss(self, x, rec):
-        return torch.mean(cd(rec, x))
+        return 1/(2*self.outvar) * torch.mean(cd(rec, x))
 
 
 class MNISTVAE(VAE):
