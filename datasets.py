@@ -69,6 +69,7 @@ class ModelnetDataset(FromNpDataset):
 
         data = np.transpose(np.concatenate(data_list, axis=0), (0, 2, 1))
         labels = np.concatenate(label_list, axis=0).squeeze()
+        print(labels.shape)
 
         if filter:
             idx = [ i for i in range(data.shape[0]) if labels[i] in filter ]
