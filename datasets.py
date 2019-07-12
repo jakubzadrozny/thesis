@@ -68,7 +68,7 @@ class ModelnetDataset(FromNpDataset):
             label_list.append(hf.get('label'))
 
         data = np.transpose(np.concatenate(data_list, axis=0), (0, 2, 1))
-        labels = np.concatenate(label_list, axis=0)
+        labels = np.concatenate(label_list, axis=0).squeeze()
 
         if filter:
             idx = [ i for i in range(data.shape[0]) if labels[i] in filter ]
