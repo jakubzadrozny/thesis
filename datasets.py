@@ -24,9 +24,7 @@ class FromNpDataset(Dataset):
     def __init__(self, np_data, labels, transform=None):
         self.data = np_data
         self.labels = labels
-        print(labels.shape)
-        self.num_classes = 10
-        # self.num_classes = len(set(labels))
+        self.num_classes = len(set(labels))
         self.transform = transform
 
     def __len__(self):
