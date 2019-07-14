@@ -1,0 +1,213 @@
+\documentclass[12pt]{extarticle}
+\usepackage{polski}
+\usepackage[utf8]{inputenc}
+
+\usepackage{amsmath}
+\usepackage{amsfonts}
+
+\usepackage{cite}
+
+\title{Modele generatywne na chmurach punktów 3D}
+\author{Jakub Zadrożny}
+\date{Maj 2019}
+
+\begin{document}
+
+\maketitle
+
+\section{Podstawowe VAE}
+W pierwszej części projektu zaimplementowany został podstawowy
+autoenkoder wariacyjny. Dalej zakładamy, że dysponujemy zbiorem
+danych treninngowych
+$$
+\mathcal{X} = \{x_i \in \mathbb{R}^{d}\}_{i \in I}
+$$
+dla pewnego $d$ -- wymiaru danych.
+
+Ponadto zakładamy, że dane są obserwacjami zmiennej losowej
+o rozkładzie następującej postaci
+\begin{equation}
+f(z, x; \theta) = f(z)f(x|z; \theta)
+\label{eq:generative_process_factorization}
+\end{equation}
+Dodatkowo niech
+\begin{equation}
+\begin{split}
+z &\sim \mathcal{N}(0, I_k) \\
+x|z &\sim \mathcal{N}(\mu_x(z; \theta), \mu_\sigma(z;\theta)I_d)
+\end{split}
+\label{eq:generative_process_distribs}
+\end{equation}
+gdzie $\mu_x,\,\mu_{\sigma}$ są skomplikowanymi obliczeniami
+wykonywanymi przez sieć neuronową sparametryzowaną przez $\theta$.
+
+\subsection{ELBO}
+Naszym celem jest odtworzenie parametrów rozkładu generującego $\theta$
+oraz rozkładu $f(z|x; \theta)$, który nazywamy \textit{reprezentacją} danych
+generowanych przez proces opsiany w
+(\ref{eq:generative_process_factorization}) oraz (\ref{eq:generative_process_distribs}).
+
+Niestety z powodu zastosowania skomplikowanych, nieliniowych
+transformacji dokładne odtworzenie rozkładu $f(z|x; \theta)$ jest niemożliwe.
+W tym celu wprowadzamy pewne przybliżenie tego rozkładu -- nazwijmy je
+$g(z|x; \phi)$.
+
+Niech $g(z|x; \theta)$ będzie gęstością
+rozkładu normalnego ze średnią $\rho_x(x; \phi)$ i wariancją $\rho_{\sigma}(x; \phi)$,
+gdzie $\rho_x,\,\rho_{\sigma}$ są reprezentowane przez sieci neuronowe
+parametryzowane przez $\phi$. Wtedy
+\begin{equation}
+\begin{split}
+D_{KL}(g(z|x;\phi) || f(z|x;\theta)) &= \mathbb{E}_{z\sim g(z|x;\phi)}\left[
+-\log\frac{f(z|x;\theta)}{g(z|x;\phi)}\right]= \\
+&=\mathbb{E}_{z\sim g(z|x;\phi)}\left[-\log\frac{f(z|x;\theta)f(x;\theta)}{g(z|x;\phi)f(x;\theta)}\right]= \\
+&=\mathbb{E}_{z\sim g(z|x;\phi)}\left[-\log\frac{f(z|x;\theta)f(x;\theta)}{g(z|x;\phi)}\right] + \mathbb{E}_{z\sim g(z|x;\phi)}\left[\log f(x;\theta)\right] = \\
+&=\mathbb{E}_{z\sim g(z|x;\phi)}\left[-\log\frac{f(z,x;\theta)}{g(z|x;\phi)}\right] +\log f(x;\theta)
+\end{split}
+\end{equation}
+Zatem
+\begin{equation}
+\log f(x;\theta) = D_{KL}(g(z|x;\phi) || f(z|x;\theta)) + \mathbb{E}_{z\sim g(z|x;\phi)}\left[\log\frac{f(z,x;\theta)}{g(z|x;\phi)}\right]
+\end{equation}
+Ponieważ $D_{KL}(\cdotp || \cdotp) \geq 0$, więc
+\begin{equation}
+\begin{split}
+\log f(x;\theta)  &\geq \mathbb{E}_{z\sim g(z|x;\phi)}\left[\log\frac{f(z,x;\theta)}{g(z|x;\phi)}\right] = \\
+&= \mathbb{E}_{z\sim g(z|x;\phi)}\left[\log\frac{f(x|z;\theta)f(z)}{g(z|x;\phi)}\right] = \\
+&=\mathbb{E}_{z\sim g(z|x;\phi)}\left[\log f(x|z;\theta)\right] - \mathbb{E}_{z\sim g(z|x;\phi)}\left[-\log\frac{f(z)}{g(z|x;\phi)}\right] =\\
+&=\mathbb{E}_{z\sim g(z|x;\phi)}\left[\log f(x|z;\theta)\right] - D_{KL}(g(z|x;\phi) || f(z))
+\end{split}
+\end{equation}
+Zatem dla dowolnego rozkładu aproksymującego $g(z|x;\phi)$ otrzymujemy dolne
+ograniczenie na prawdopodobieństwo wygenerowania zaobserwowanych danych.
+Dlatego część wzoru po prawej stronie od ostatniej równości
+nazywamy ELBO (\textit{evidence lower bound}). Ponadto pierwszy składnik odpowiada
+jakości rekonstrukcji obserwacji ze zmiennej ukrytej $z$, więc nazywany jest
+kosztem rekonstrukcji, natomiast drugi to odległość $KL$ rozkładu aproksymującego
+$f(z|x;\theta)$ od naszego założenia na jego temat.
+
+\subsection{Zadanie optymalizacyjne}
+Chcemy znaleźć układ parametrów $<\theta,\,\phi>$, który daje najlepszą
+gwarancję na prawdopodobieństwo wygenerowania zaobserwowanych danych (ELBO).
+W tym celu posłużymy się lekko zmodyfikowanym algorytmem SGD.
+Naszym zadaniem jest znalezienie
+\begin{equation}
+\begin{split}
+\max_{\theta,\,\phi} \hat{\mathcal{L}}(\mathcal{X}, \theta, \phi) &= \sum_{i \in I}\mathcal{L}(x_i, \theta, \phi) = \\
+&=\sum_{i \in I} \left( \mathbb{E}_{z\sim g(z|x_i;\phi)}\left[\log f(x_i|z;\theta)\right] - D_{KL}(g(z|x_i;\phi) || f(z)) \right)
+\end{split}
+\end{equation}
+Ponieważ bardziej naturalnym zadaniem jest minimalizowanie funkcji kosztu,
+to rozwiążemy równoważne zadanie znalezienia
+\begin{equation}
+\min_{\theta,\,\phi} -\hat{\mathcal{L}}(\mathcal{X}, \theta, \phi)
+\end{equation}
+
+Żeby posłużyć się algorytmem SGD musimy umieć wyliczać i różniczkować
+oba składniki funckji $\mathcal(L)$.
+
+\subsubsection{Koszt $KL$}
+Odległość $KL$ dwóch rozkładów normalnych o następujących parametrach
+\begin{equation*}
+\begin{split}
+\mathcal{N}_0 \sim \mathcal{N}(\mu_0, \Sigma_0) \\
+\mathcal{N}_1 \sim \mathcal{N}(\mu_1, \Sigma_1)
+\end{split}
+\end{equation*}
+dla pewncyh $\mu_0,\,\mu_1 \in \mathbb{R}^k,\ \Sigma_0, \Sigma_1 \in \mathbb{R}^{k \times k}$, wynosi
+\begin{equation*}
+D_{KL}(\mathcal{N}_0||\mathcal{N}_1) = \frac{1}{2} \left(\text{tr}(\Sigma_1^{-1}\Sigma_0)
++ (\mu_1-\mu_0)^T \Sigma_1^{-1} (\mu_1-\mu_0) -k + \log\frac{\det\Sigma_1}{\det\Sigma_0} \right)
+\end{equation*}
+Ponieważ zakładamy, że $f(z)$ jest rozkładem $z \sim \mathcal{N}(0, I_k)$, więc
+\begin{equation}
+D_{KL}(g(z|x;\phi) || f(z)) = \frac{1}{2}\sum_{i=1}^k
+\left( \rho_x(x;\phi)_i^2 + \rho_\sigma(x;\phi)_i^2 - \log(\rho_\sigma(x;\phi)_i^2)-1 \right)
+\label{eq:kl_loss}
+\end{equation}
+Wzór (\ref{eq:kl_loss}) można wyliczać i różniczkować analitycznie.
+
+\subsubsection{Koszt rekonstrukcji}
+Drugiego składnika funckji $\mathcal{L}$, czyli kosztu rekonstrukcji,
+nie da się wyznaczyć analitycznie. Aby objeść ten problem, możemy metodą Monte Carlo
+oszacować wartość oczekiwaną przez średnią
+$$
+\mathbb{E}_{z\sim g(z|x;\phi)}\left[\log f(x_i|z;\theta)\right] \sim
+\frac{1}{m} \sum_{i=1}^m -\log f(x|z_i;\theta)
+$$
+gdzie $z_i \sim g(z|x;\phi)$. Taką wartość potrafimy już wyliczyć, ale nie
+potrafimy propagować gradientu do parametrów $\phi$ przez
+zaobserwowane wartości $z_i$.
+
+Wprowadzimy repearametryzację zmiennych $z_i$ -- możemy zauważyć, że zmienna
+$z_i=\rho_x(x;\phi)+\epsilon_i\rho_\sigma(x;\phi)$
+gdzie $\epsilon_i \sim \mathcal{N}(0, I_k)$
+ma rozkład $g(z|x;\phi)$ a ponadto możemy propagować gradient do parametrów $\phi$.
+Otrzymaliśmy zatem następujące przybliżenie na $\mathcal{L}$
+$$
+\mathbb{E}_{z\sim g(z|x;\phi)}\left[\log f(x_i|z;\theta)\right] \sim
+\frac{1}{m} \sum_{i=1}^m -\log f(x|z_i=\rho_x(x;\phi)+\epsilon_i\rho_\sigma(x;\phi);\theta)
+$$
+gdzie $\epsilon_i \sim \mathcal{N}(0, I_k)$
+
+Ponieważ $x|z \sim \mathcal{N}(\mu_x(z; \theta), \mu_\sigma(z;\theta)I_d)$, więc
+$$
+-\log f(x|z;\theta)=\sum_{i=1}^d \left( \frac{1}{2}\log(2\pi) +\log(\mu_\sigma(z;\theta)_i)
++\frac{(x-\mu_x(z;\theta)_i)^2}{2\mu_\sigma(z;\theta)_i^2} \right)
+$$
+jednak metryka ta niezbyt dobrze nadaje się do chmur punktów, ponieważ np.
+chcielibyśmy uznawać permutację punktów oryginalnej chmury za dobrą rekonstrukcję.
+Dlatego zamiast wyliczać \textit{stricte} $\log f(x|z;\theta)$ skorzystamy ze zmodyfikowanego
+\textit{Chamfer distance} danego wzorem
+\begin{equation}
+CD(\mathcal{X}_1,\mathcal{X}_2) = \sum_{x \in \mathcal{X}_1} \min_{y \in \mathcal{X}_2} ||x-y||_2^2
++ \sum_{x \in \mathcal{X}_2} \min_{y \in \mathcal{X}_1} ||x-y||_2^2
+\label{eq:chamfer_distance}
+\end{equation}
+gdzie $\mathcal{X}_1,\,\mathcal{X}_2$ są zbiorami punktów wielowymiarowych.
+Ściślej mówiąc, możemy potraktować $\mu_x(z;\theta) \in \mathbb{R}^{3 \cdotp m}$ jako chmurę
+$m$ punktów trójwymiarowych, oznaczmy ją $\hat{y}$. Ponadto dla $y \in \hat{y}$ niech
+$\sigma(y)$ oznacza 3-elementowy wektor wariancji $\mu_\sigma(z;\theta)$ utworzony ze
+składowych odpowiadających $y$. Za koszt rekonstrukcji przyjmiemy
+\begin{equation}
+\begin{split}
+\mathcal{L}_{rec}(\hat{x}|z,\theta,\phi) &= \sum_{x \in \hat{x}} \min_{y \in \hat{y}}
+\left( -\log p_{y,\sigma(y)}(x) \right) +\\
+&+ \sum_{y \in \hat{y}} \min_{x \in \hat{x}} \left( -\log p_{x,\sigma(y)}(y) \right)
+% \sum_{i=1}^3 \log(\mu_\sigma(z;\theta)_{y,i})+\frac{(x_i-y_i)^2}{2\mu_\sigma(z;\theta)_{y,i}^2} + \\
+% &+ \sum_{x \in \mu_x(z|\theta) \min_{y \in \hat{x}}
+% \sum_{i=1}^3 \log(\mu_\sigma(z;\theta)_{y,i})+\frac{(x_i-y_i)^2}{2\mu_\sigma(z;\theta)_{y,i}^2}
+\end{split}
+\end{equation}
+gdzie $p_{v,s}(x)$ jest gęstością rozkładu normalnego o średniej $v$ i macierzy kowariancji
+$sI$ w punkcie $x$.
+
+Po usunięcu stałych wyrazów można to zapisać jako
+\begin{equation}
+\begin{split}
+\mathcal{L}_{rec}(\hat{x}|z,\theta,\phi) &= \sum_{x \in \hat{x}} \min_{y \in \hat{y}} \sum_{i=1}^3
+\left( \log(\sigma(y)_i) + \frac{(x_i-y_i)^2}{2\sigma(y)_i^2} \right) +\\
+&+ \sum_{y \in \hat{y}} \min_{x \in \hat{x}} \sum_{i=1}^3
+\left( \log(\sigma(y)_i) + \frac{(x_i-y_i)^2}{2\sigma(y)_i^2} \right)
+\end{split}
+\label{eq:rec_loss}
+\end{equation}
+W obecnej wersji modelu dla uproszczenia przyjęto, że $\mu_\sigma(z;\theta) = \alpha$
+dla wszystkich $z$ i niezależnie od parametrów $\theta$ (tzn. przyjęto stałą wariancję dla
+danych wyjściowych). Wtedy wzór (\ref{eq:rec_loss}) upraszcza się do
+\begin{equation}
+\begin{split}
+\mathcal{L}_{rec}(\hat{x}|z,\theta,\phi) &= \frac{1}{2\alpha^2} \left(
+\sum_{x \in \hat{x}} \min_{y \in \hat{y}} ||x-y||_2^2 +
+\sum_{y \in \hat{y}} \min_{x \in \hat{x}} ||x-y||_2^2 \right) = \\
+&= \frac{1}{2\alpha^2} CD(\hat{x}, \hat{y})
+\end{split}
+\end{equation}
+
+% Appendix architektura
+% Appendix parametry
+
+\bibliographystyle{plain}
+\bibliography{M335}
+
+\end{document}

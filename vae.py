@@ -58,10 +58,10 @@ class PCVAE(VAE):
 
     def __init__(self, outvar=2e-3):
         super(VAE, self).__init__()
-        # self.mean_encoder = SimplePointnetEncoder(ENCODER_HIDDEN, LATENT)
         # self.sigma_encoder = SimplePointnetEncoder(ENCODER_HIDDEN, LATENT)
         self.outvar = outvar
-        self.encoder = prep_seq(*ENCODER_DIMS, bnorm=True)
+        self.encoder = SimplePointnetEncoder(ENCODER_HIDDEN, 2*LATENT)
+        # self.encoder = prep_seq(*ENCODER_DIMS, bnorm=True)
         self.decoder = prep_seq(*DECODER_DIMS)
 
     def rec_loss(self, x, rec):

@@ -7,6 +7,7 @@ from vae import PCVAE, MNISTVAE
 from m2 import M2, MNISTM2, ModifiedM2, MNISTModifiedM2
 from gmvae import GMVAE, MNISTGMVAE
 from eval import eval_supervised, eval_unsupervised
+from transforms import RandomRotation, GaussianNoise, Compose
 
 INF = 1e60
 
@@ -126,7 +127,12 @@ def train_m2(model, train_dataset, drop_labels=0.0, log_every=200):
 
 
 if __name__ == '__main__':
-    train_dataset = ModelnetDataset(filter=[FAVOURITE_CLASS])
+    train_dataset = ModelnetDataset(filter=[FAVOURITE_CLASS], transform=
+        Compose(
+            RandomRotation(scale=0.1),
+            GaussianNoise(std=0.05),
+        )
+    )
     model = PCVAE()
     model.to(device)
     train_vae(model, train_dataset)
