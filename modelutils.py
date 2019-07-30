@@ -3,16 +3,13 @@ import os.path
 import torch
 from torch import nn
 import torch.nn.functional as F
-from torch.distributions.normal import Normal
 
 from pointnet import PointNetfeat
 
 MODELS_DIR = 'trained'
 MODELS_EXT = '.dms'
 
-cuda_zero = True
-
-if cuda_zero and torch.cuda.is_available():
+if torch.cuda.is_available():
     from chamfer_distance import ChamferDistance
     cdist = ChamferDistance()
     def cd(x, y):

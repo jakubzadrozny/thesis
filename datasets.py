@@ -9,16 +9,23 @@ from torch.utils.data import Dataset
 from torchvision import datasets, transforms
 
 DATA_DIR = 'data'
-DATA_FILE_BASE = 'ply_data_train'
+TRAIN_FILE_BASE = 'ply_data_train'
+TEST_FILE_BASE = 'ply_data_test'
 DATA_FILE_EXT = '.h5'
 
-FAVOURITE_CLASS = 8
-FAVOURITE_CLASSES = [0, 8, 30]
+FAVOURITE_CLASSES = [8, 0, 30]
 
 def one_hot(y, K):
     x = torch.zeros(K)
     x[y] = 1
     return x
+
+def index_or_len(lst, item):
+    try:
+        return lst.index(item)
+    except ValueError:
+        return len(lst)
+
 
 class FromNpDataset(Dataset):
     def __init__(self, np_data, labels, transform=None):
@@ -41,7 +48,7 @@ class FromNpDataset(Dataset):
 
 class ModelnetDataset(FromNpDataset):
 
-    DATA_URLS = [
+    TRAIN_DATA_URLS = [
         'https://drive.google.com/uc?export=download&id=1MNgxTzGCw5By8a9aNLi7pYjcuEoRUxsR',
         'https://drive.google.com/uc?export=download&id=1co-dX33hgpDk7vUDYS-n-oOWJHSuLBkq',
         'https://drive.google.com/uc?export=download&id=1VDqD4PdqGdbfsOKdQAc4zZTsH4a1Nyqo',
@@ -49,31 +56,40 @@ class ModelnetDataset(FromNpDataset):
         'https://drive.google.com/uc?export=download&id=1UlcrapAbSBRDhCNVsuPMEaEAcvDXxOLY',
     ]
 
-    def __init__(self, filter=None, transform=None):
+    TEST_DATA_URLS = [
+        'https://drive.google.com/uc?export=download&id=1bBtvzwEfgzczoorJucXNfzGH2dXSBPZv',
+        'https://drive.google.com/uc?export=download&id=1zBO0li-qwu95GleFpEzmkVcJB1V_zgks',
+    ]
+
+    def __init__(self, test=False, filter=100, transform=None):
         if not os.path.isdir(DATA_DIR):
             os.mkdir(DATA_DIR)
 
-        for idx, url in enumerate(ModelnetDataset.DATA_URLS):
-            file_path = os.path.join(DATA_DIR, DATA_FILE_BASE+str(idx)+DATA_FILE_EXT)
+        if test:
+            file_base = TEST_FILE_BASE
+            data_urls = ModelnetDataset.TEST_DATA_URLS
+        else:
+            file_base = TRAIN_FILE_BASE
+            data_urls = ModelnetDataset.TRAIN_DATA_URLS
+
+        data_list, label_list = [], []
+        for idx, url in enumerate(data_urls):
+            file_path = os.path.join(DATA_DIR, file_base+str(idx)+DATA_FILE_EXT)
+
             if not os.path.exists(file_path):
                 gdown.download(url, file_path, quiet=False)
 
-        data_list, label_list = [], []
-        h5_files = [ f for f in listdir(DATA_DIR)
-                        if os.path.isfile(os.path.join(DATA_DIR, f))
-                        if os.path.splitext(f)[1] == DATA_FILE_EXT ]
-        for f in h5_files:
-            hf = h5py.File(os.path.join(DATA_DIR, f), 'r')
+            hf = h5py.File(file_path, 'r')
             data_list.append(hf.get('data'))
             label_list.append(hf.get('label'))
 
         data = np.transpose(np.concatenate(data_list, axis=0), (0, 2, 1))
         labels = np.concatenate(label_list, axis=0).squeeze()
 
-        if filter:
-            idx = [ i for i in range(data.shape[0]) if labels[i] in filter ]
+        if filter <= len(FAVOURITE_CLASSES):
+            idx = [ i for i in range(data.shape[0]) if index_or_len(FAVOURITE_CLASSES, labels[i]) < filter ]
             data = data[idx]
-            labels = [ filter.index(labels[i]) for i in idx ]
+            labels = [ FAVOURITE_CLASSES.index(labels[i]) for i in idx ]
 
         super().__init__(data, labels, transform=transform)
 

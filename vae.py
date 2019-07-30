@@ -5,9 +5,9 @@ import torch.nn.functional as F
 from modelutils import SimplePointnetEncoder, SaveableModule, prep_seq, cd, gaussian_sample
 
 LATENT = 128
-HIDDEN = 2048
+HIDDEN = 1024
 OUT_DIM = 3*2048
-ENCODER_DIMS = [OUT_DIM, HIDDEN, HIDDEN, HIDDEN, HIDDEN, 2*LATENT]
+ENCODER_DIMS = [OUT_DIM, HIDDEN, HIDDEN, HIDDEN, 2*LATENT]
 DECODER_DIMS = [LATENT, HIDDEN, HIDDEN, HIDDEN, OUT_DIM]
 
 MNIST_LATENT = 20
@@ -58,11 +58,11 @@ class PCVAE(VAE):
 
     def __init__(self, outvar=2e-3):
         super(VAE, self).__init__()
-        # self.sigma_encoder = SimplePointnetEncoder(ENCODER_HIDDEN, LATENT)
         self.outvar = outvar
-        self.encoder = SimplePointnetEncoder(ENCODER_HIDDEN, 2*LATENT)
-        # self.encoder = prep_seq(*ENCODER_DIMS, bnorm=True)
         self.decoder = prep_seq(*DECODER_DIMS)
+        self.encoder = prep_seq(*ENCODER_DIMS, bnorm=True)
+        # self.sigma_encoder = SimplePointnetEncoder(ENCODER_HIDDEN, LATENT)
+        # self.mean_encoder = SimplePointnetEncoder(ENCODER_HIDDEN, 2*LATENT)
 
     def rec_loss(self, x, rec):
         return 1/(2*self.outvar) * torch.mean(cd(rec, x))
