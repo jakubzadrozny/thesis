@@ -21,7 +21,6 @@ class VAE(SaveableModule):
         super().__init__()
 
     def encode(self, x):
-        x = x.reshape(x.shape[0], -1)
         x = self.encoder(x)
         return torch.chunk(x, 2, dim=1)
 
@@ -60,9 +59,14 @@ class PCVAE(VAE):
         super(VAE, self).__init__()
         self.outvar = outvar
         self.decoder = prep_seq(*DECODER_DIMS)
-        self.encoder = prep_seq(*ENCODER_DIMS, bnorm=True)
+        # self.encoder = prep_seq(*ENCODER_DIMS, bnorm=True)
+        self.encoder = SimplePointnetEncoder(HIDDEN, 2*LATENT)
         # self.sigma_encoder = SimplePointnetEncoder(ENCODER_HIDDEN, LATENT)
         # self.mean_encoder = SimplePointnetEncoder(ENCODER_HIDDEN, 2*LATENT)
+
+    # def encode(self, x):
+    #     x = x.reshape(x.shape[0], -1)
+    #     return super().encode(x)
 
     def rec_loss(self, x, rec):
         return 1/(2*self.outvar) * torch.mean(cd(rec, x))

@@ -1,5 +1,6 @@
 import torch
 from torch.optim import Adam
+from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader, random_split
 
 from datasets import ModelnetDataset
@@ -10,7 +11,7 @@ from eval import loss_on_loader
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
-def train_unsupervised(model, optimizer, train_loader, test_loader,
+def train_unsupervised(model, optimizer, scheduler, train_loader, test_loader,
                        num_epochs=1000, M=1, lbd=0.0):
     print('Training your model!\n')
     model.train()
@@ -29,12 +30,16 @@ def train_unsupervised(model, optimizer, train_loader, test_loader,
                 loss.backward()
                 optimizer.step()
 
-            train_loss, train_stats = loss_on_loader(model, train_loader, M=M, device=device)
-            test_loss, test_stats = loss_on_loader(model, test_loader, M=M, device=device)
-            print("Epoch {epoch}: train loss={train_loss}, train stats={train_stats}, \
-                   test loss={test_loss}, test stats={test_stats}",
-                   epoch=epoch, train_loss=train_loss, train_stats=train_stats,
-                   test_loss=test_loss, test_stats=test_stats)
+            scheduler.step()
+
+            if (epoch % 5) == 1 or epoch == num_epochs-1:
+                train_loss, train_stats = loss_on_loader(model, train_loader, M=M, device=device)
+                test_loss, test_stats = loss_on_loader(model, test_loader, M=M, device=device)
+                print("Epoch {epoch}\ntrain loss={train_loss}, train stats={train_stats}\n"
+                      "test loss={test_loss}, test stats={test_stats}"
+                       .format(epoch=epoch, train_loss=train_loss, train_stats=train_stats,
+                               test_loss=test_loss, test_stats=test_stats)
+                     )
 
     except KeyboardInterrupt:
         pass
@@ -46,11 +51,14 @@ def train_unsupervised(model, optimizer, train_loader, test_loader,
     print('done.')
 
 
-def train_vae(model, train_dataset, test_dataset, lr=5e-5, M=1, lbd=0.0, num_epochs=1000):
+def train_vae(model, train_dataset, test_dataset, M=1, lbd=0.0, num_epochs=1000):
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4, drop_last=True)
     test_loader = DataLoader(test_dataset, batch_size=32, num_workers=2, drop_last=True)
-    optimizer = Adam(model.parameters(), lr=lr)
-    train_unsupervised(model, optimizer, train_loader, test_loader,
+
+    optimizer = Adam(model.parameters(), lr=1e-4)
+    scheduler = StepLR(optimizer, step_size=500, gamma=0.5)
+
+    train_unsupervised(model, optimizer, scheduler, train_loader, test_loader,
                        lbd=lbd, M=M, num_epochs=num_epochs)
 
 
@@ -59,7 +67,7 @@ if __name__ == '__main__':
     test_dataset = ModelnetDataset(filter=1, test=True)
     model = PCVAE(outvar=0.5)
     model.to(device)
-    train_vae(model, train_dataset, test_dataset)
+    train_vae(model, train_dataset, test_dataset, lbd=40.0, M=3, num_epochs=3000)
 
 
 # def train_m2(model, train_dataset, drop_labels=0.0, log_every=200):
