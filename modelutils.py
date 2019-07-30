@@ -77,11 +77,12 @@ class SimplePointnetEncoder(nn.Module):
         self.fc2 = nn.Linear(hidden, latent)
         self.bnorm1 = nn.BatchNorm1d(1024)
         self.bnorm2 = nn.BatchNorm1d(hidden)
+        self.dropout = nn.Dropout()
 
     def forward(self, x):
-        x = F.relu(self.model(x)[0])
+        x = F.relu(self.dropout(self.model(x)[0]))
         x = self.bnorm1(x)
-        x = F.relu(self.fc1(x))
+        x = F.relu(self.dropout(self.fc1(x)))
         x = self.bnorm2(x)
         x = self.fc2(x)
         return x

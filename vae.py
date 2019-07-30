@@ -55,7 +55,7 @@ class PCVAE(VAE):
 
     DEFAULT_SAVED_NAME = 'pcvae'
 
-    def __init__(self, outvar=2e-3):
+    def __init__(self, outvar=1e-3):
         super(VAE, self).__init__()
         self.outvar = outvar
         self.decoder = prep_seq(*DECODER_DIMS)
@@ -69,7 +69,7 @@ class PCVAE(VAE):
     #     return super().encode(x)
 
     def rec_loss(self, x, rec):
-        return 1/(2*self.outvar) * torch.mean(cd(rec, x))
+        return 1/self.outvar * torch.mean(cd(rec, x))
 
 
 class MNISTVAE(VAE):
