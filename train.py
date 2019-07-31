@@ -32,7 +32,7 @@ def train_unsupervised(model, optimizer, scheduler, train_loader, test_loader,
 
             scheduler.step()
 
-            if (epoch % 5) == 1 or epoch == num_epochs-1:
+            if (epoch % 20) == 1 or epoch == num_epochs-1:
                 train_loss, train_stats = loss_on_loader(model, train_loader, M=M, device=device)
                 test_loss, test_stats = loss_on_loader(model, test_loader, M=M, device=device)
                 print("Epoch {epoch}\ntrain loss={train_loss}, train stats={train_stats}\n"
@@ -55,8 +55,8 @@ def train_vae(model, train_dataset, test_dataset, M=1, lbd=0.0, num_epochs=1000)
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4, drop_last=True)
     test_loader = DataLoader(test_dataset, batch_size=32, num_workers=2, drop_last=True)
 
-    optimizer = Adam(model.parameters(), lr=2e-4, weight_decay=1e-5)
-    scheduler = StepLR(optimizer, step_size=500, gamma=0.5)
+    optimizer = Adam(model.parameters(), lr=1e-3)
+    scheduler = StepLR(optimizer, step_size=800, gamma=0.5)
 
     train_unsupervised(model, optimizer, scheduler, train_loader, test_loader,
                        lbd=lbd, M=M, num_epochs=num_epochs)
@@ -67,7 +67,7 @@ if __name__ == '__main__':
     test_dataset = ModelnetDataset(filter=1, test=True)
     model = PCVAE()
     model.to(device)
-    train_vae(model, train_dataset, test_dataset, lbd=0.0, M=3, num_epochs=3000)
+    train_vae(model, train_dataset, test_dataset, num_epochs=5000, M=3)
 
 
 # def train_m2(model, train_dataset, drop_labels=0.0, log_every=200):

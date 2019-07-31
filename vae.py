@@ -7,8 +7,8 @@ from modelutils import SimplePointnetEncoder, SaveableModule, prep_seq, cd, gaus
 LATENT = 128
 HIDDEN = 1024
 OUT_DIM = 3*2048
+DECODER_DIMS = [LATENT, HIDDEN, HIDDEN, OUT_DIM]
 ENCODER_DIMS = [OUT_DIM, HIDDEN, HIDDEN, HIDDEN, 2*LATENT]
-DECODER_DIMS = [LATENT, HIDDEN, HIDDEN, HIDDEN, OUT_DIM]
 
 MNIST_LATENT = 20
 MNIST_HIDDEN = 500
@@ -29,10 +29,13 @@ class VAE(SaveableModule):
         rec = self.decoder(z)
         return rec
 
+    def decode_at_mean(self, z_mean):
+        return self.decoder(z_mean)
+
     def forward(self, x):
-        z_mean, z_log_sigma2 = self.encode(x)
-        rec = self.decode(z_mean, z_log_sigma2).view(x.shape)
-        return rec, z_mean, z_log_sigma2
+        z_mean, _ = self.encode(x)
+        rec = self.decode_at_mean(z_mean).view(x.shape)
+        return rec, z_mean
 
     def elbo_loss(self, x, M=1, lbd=0.0):
         z_mean, z_log_sigma2 = self.encode(x)
@@ -59,10 +62,8 @@ class PCVAE(VAE):
         super(VAE, self).__init__()
         self.outvar = outvar
         self.decoder = prep_seq(*DECODER_DIMS)
+        self.encoder = SimplePointnetEncoder(2*LATENT)
         # self.encoder = prep_seq(*ENCODER_DIMS, bnorm=True)
-        self.encoder = SimplePointnetEncoder(HIDDEN, 2*LATENT)
-        # self.sigma_encoder = SimplePointnetEncoder(ENCODER_HIDDEN, LATENT)
-        # self.mean_encoder = SimplePointnetEncoder(ENCODER_HIDDEN, 2*LATENT)
 
     # def encode(self, x):
     #     x = x.reshape(x.shape[0], -1)
