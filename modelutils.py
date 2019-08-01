@@ -73,11 +73,13 @@ class SimplePointnetEncoder(nn.Module):
     def __init__(self, latent):
         super().__init__()
         self.model = PointNetfeat()
-        self.fc1 = nn.Linear(1024, latent)
+        self.fc = nn.Linear(1024, latent)
+        self.bnorm = nn.BatchNorm1d(1024)
 
     def forward(self, x):
         x = F.relu(self.model(x)[0])
-        x = self.fc1(x)
+        x = self.bnorm(x)
+        x = self.fc(x)
         return x
 
 
