@@ -48,6 +48,18 @@ class RandomRotation(object):
         res = np.dot(R, sample)
         return res
 
+
+class SetRotation(RandomRotation):
+    def __init__(self, degrees):
+        self.degrees = degrees
+
+    def __call__(self, sample):
+        a, b, c = self.degrees
+        R = SetRotation.get_matrix(a, b, c)
+        res = np.dot(R, sample)
+        return res
+
+
 class Compose(object):
     def __init__(self, transforms):
         self.transforms = transforms

@@ -204,6 +204,74 @@ danych wyjściowych). Wtedy wzór (\ref{eq:rec_loss}) upraszcza się do
 \end{split}
 \end{equation}
 
+\subsection{Implementacja praktyczna}
+W tej sekcji przedstawiona została praktyczna implementacja teoretycznego zadania optymalizacyjnego
+opsianego w sekcji \ref{sec:optim_task}. Ściślej, zaimplementowany został model uczący się reprezentacji
+danych ze zbioru \textit{Modelnet40} (\ref{bib:modelnet40}).
+
+\subsubsection{\textit{Modelnet40}}
+
+\subsubsection{Przestrzeń \textit{reprezentacji danych}}
+W rozważanej implementacji przyjęto 128-wymiarową przestrzeń \textit{reprezentacji danych}.
+
+\subsubsection{Architektura modelu}
+W opisie rozwiązywanego zagadnienia optymalizacyjnego (sekcja \ref{sec:optim_task}) użyte zostały
+abstrakcyjne obliczenia $\rho$ oraz $\mu$ realizowane przez sieci neuronowe. Do praktycznej implementacji
+należy nadać tym obliczeniom pewną architekturę. Naturalnym pierwszym rozwiązaniem jest realizowanie
+tych obliczeń przez zwykłą sieć MLP (z dodatkiem \textit{batch normalization} [\ref{bib:batch_normalization}]).
+Obliczenia $\rho_x,\ \rho_\sigma$ są realizowane przez jedną sieć MLP, natomiast $\mu_x$ przez drugą (przypomnijmy,
+że dla uproszczenia przyjęto, że $\mu_\sigma$ jest stałe).
+Do testów przyjęto, że obie sieci $\rho_1,\ \mu_1$ są 4-warstwowe, w której każda ukryta warstwa składa się z 1024 neuronów.
+
+Dalej rozważono również bardziej skomplikowaną sieć $\rho$ opartą na architekturze \textit{Pointnet} [\ref{bib:pointnet}].
+Dokładniej, sieć $\rho_2$ jest początkowym fragmentem sieci \textit{Pointnet} wyszukującym poszczególne cechy (\textit{features})
+z doklejoną warstwą wyjściową (warstwa wyjściowa jest w pełni połączona z wyjściem sieci \textit{Pointnet}).
+Sieć $\mu_2$ pozostaje prostym MLP, dokładnie takim, jak $\mu_1$.
+
+W tabeli (\ref{tab:mlp_vs_pointnet}) znajduje się porównanie dwóch zaproponowanych powyżej architektur. Możemy zauważyć,
+że oba podejścia osiągają podobne wyniki na danych treningowych, jednak prosta sieć MLP znacznie bardziej \textit{overfituje}
+niż sieć oparta na \textit{Pointnecie}. Z racji tego, że drugi zestaw sieci znacznie lepiej się generalizuje, do dalszej
+pracy i testów przyjmiemy sieci oprate na \textit{Pointnecie}.
+
+\subsubsection{Trenowanie modelu}
+Do optymalizacji funckji kosztu danej wzorem (\ref{eq:loss_f}) użyto metody ADAM [\ref{bib:adam}]. Początkowe learning rate
+wynosiło $0.0002$ i zmniejszało się o połowę, co każde 1000 epok. Model trenowany był przez 5000 epok (duża liczba epok
+wynika z niewielkiej ilości próbek). Na rys \ref{fig:loss_decrease} przedstawiona została zmiana całkowitej funkcji kosztu,
+kosztu rekonstrukcji oraz kosztu KL w czasie.
+
+\subsubsection{Wyniki eksperymentalne}
+Na wytrenowanym modelu przeprowadzono kilka eksperymentów mających na celu sprawdzić zarówno zdolności modelu do dokładnej
+rekonstrukcji, jak i jego możliwości generatywne.
+
+Na rys \ref{fig:simple_reconstructions} znajdują się oryginalne chmury punktów ze zbioru \textit{Modelnet40} (po lewej)
+wraz z chmurami zrekonstruowanymi przez dekoder na podstawie zmiennych pośrednich wyliczonych przez enkoder (po prawej).
+
+Jedną z miar jakości rekonstrukcji autoenkoderów jest pokrycie (\textit{coverage}). Pokrycie definiujemy jako procent
+próbek ze zbioru danych, dla którego najbliższa (w tym przypadku w sensie \textit{Chamfer Distance}) inna próbka
+spośród całego zbioru dancyh oraz wszystkich rekonstrukcji pochodzi ze zbioru rekonstrukcji.
+Dla wytrenowanego modelu pokrycie na rozważanym podzbiorze \textit{Modelnetu40} wynosi $...\%$.
+
+Jedną z największych zalet VAE są jego zdolności generatywne. Klasycznym sposobem demonstracji zdolności generatywnych
+modelu jest skonstruowanie takiej interpolacji pomiędzy dwoma różnymi obiektami, że każdy z jej kroków pośrednich
+jest \textit{podobny} (wizualnie lub z użyciem metryki) do próbek z oryginalnego zbioru danych. Rys \ref{fig:interpolation}
+przedstawiają interpolacje wykonane przez rozważany powyżej model. Można zaobserwować, że kolejne kroki interpolacji
+coraz bardziej upodobniają obiekt źródłowy do docelowego, jednocześnie zachowując typowe cechy obiektów z oryginalnego
+zbioru danych.
+
+Własnością wyróżniającą VAE na tle innych enkoderów jest możliwość odgórnego zadania rozkładu zmiennych pośrednich,
+który model będzie musiał osiągnąć. Dla rozważanego modelu zadano rozkład standardowy wielowymiarowy normalny
+(o średniej w 0 i identycznościowej macierzy kowariancji). Dzięki temu, możemy tworzyć nowe, nieistniejące w zbiorze
+danych próbki, przez wylosowanie zmiennej pośredniej z wybranego powyżej rozkładu i przekazanie jej do dekodera.
+Rys. \ref{fig:random_latent} przedstawia chmury otrzymane w ten właśnie sposób. Możemy zauważyć, że powstałe
+próbki dobrze pasują do reszty zbioru danych i ponadto prezentują dużą różnorodność (pochodzą z różnych podklas),
+co świadczy o dużych możliwościach generatywnych modelu.
+
+Rys \ref{fig:pca_tsne} przedstawiają wykresy median rozkładów zwróconych przez enkoder po zredukowaniu
+do dwóch wymiarów metodami PCA (górny) i t-SNE (dolny). Możemy zauważyć, że na obu wykresach mediany rozmieszczone
+są dość jednostajnie i gęsto na kole o środku w punkcie $(0, 0)$. Oznacza to, że reprezentacja próbek ze zbioru jest
+\textit{ściśnięta} do zera i gęsta, co umożliwia przeprowadzenie interpolacji oraz tworzenie syntetycznych próbek
+na podstawie wylosowanych zmiennych pośrednich (jak wyżej).
+
 % Appendix architektura
 % Appendix parametry
 

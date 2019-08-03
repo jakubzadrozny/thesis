@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.20 (TeX Live 2019) (preloaded format=pdflatex 2019.5.4)  4 JUN 2019 11:15
+This is pdfTeX, Version 3.14159265-2.6-1.40.20 (TeX Live 2019) (preloaded format=pdflatex 2019.5.4)  1 AUG 2019 15:52
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -225,36 +225,91 @@ Overfull \hbox (58.88957pt too wide) detected at line 67
 
 {/usr/local/texlive/2019/texmf-var/fonts/map/pdftex/updmap/pdftex.map}]
 [2] [3] [4]
+
+LaTeX Warning: Reference `sec:optim_task' on page 5 undefined on input line 209
+.
+
+
+LaTeX Warning: Reference `bib:modelnet40' on page 5 undefined on input line 210
+.
+
+
+LaTeX Warning: Reference `sec:optim_task' on page 5 undefined on input line 218
+.
+
+
+LaTeX Warning: Reference `bib:batch_normalization' on page 5 undefined on input
+ line 221.
+
+[5]
+
+LaTeX Warning: Reference `bib:pointnet' on page 6 undefined on input line 226.
+
+
+LaTeX Warning: Reference `tab:mlp_vs_pointnet' on page 6 undefined on input lin
+e 231.
+
+
+LaTeX Warning: Reference `eq:loss_f' on page 6 undefined on input line 237.
+
+
+LaTeX Warning: Reference `bib:adam' on page 6 undefined on input line 237.
+
+
+LaTeX Warning: Reference `fig:loss_decrease' on page 6 undefined on input line 
+239.
+
+
+LaTeX Warning: Reference `fig:simple_reconstructions' on page 6 undefined on in
+put line 246.
+
+
+LaTeX Warning: Reference `fig:interpolation' on page 6 undefined on input line 
+256.
+
+[6]
+
+LaTeX Warning: Reference `fig:random_latent' on page 7 undefined on input line 
+265.
+
+
+LaTeX Warning: Reference `fig:pca_tsne' on page 7 undefined on input line 269.
+
 No file report.bbl.
-[5] (./report.aux) ) 
+[7] (./report.aux)
+
+LaTeX Warning: There were undefined references.
+
+ ) 
 Here is how much of TeX's memory you used:
- 1303 strings out of 492618
- 17848 string characters out of 6129501
+ 1317 strings out of 492618
+ 18084 string characters out of 6129501
  80410 words of memory out of 5000000
- 5227 multiletter control sequences out of 15000+600000
- 16612 words of font info for 52 fonts, out of 8000000 for 9000
+ 5240 multiletter control sequences out of 15000+600000
+ 17159 words of font info for 53 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  27i,18n,25p,223b,197s stack positions out of 5000i,500n,10000p,200000b,80000s
-{/usr/local/texlive/2019/texmf-dist/fonts/enc/dvips/pl/plrm
-.enc}{/usr/local/texlive/2019/texmf-dist/fonts/enc/dvips/pl/plmi.enc}{/usr/loca
-l/texlive/2019/texmf-dist/fonts/enc/dvips/pl/plme.enc}{/usr/local/texlive/2019/
-texmf-dist/fonts/enc/dvips/pl/plit.enc}{/usr/local/texlive/2019/texmf-dist/font
-s/enc/dvips/pl/plms.enc}</usr/local/texlive/2019/texmf-dist/fonts/type1/public/
-amsfonts/symbols/msbm10.pfb></usr/local/texlive/2019/texmf-dist/fonts/type1/pub
-lic/pl/plbx12.pfb></usr/local/texlive/2019/texmf-dist/fonts/type1/public/pl/ple
-x10.pfb></usr/local/texlive/2019/texmf-dist/fonts/type1/public/pl/plmi12.pfb></
-usr/local/texlive/2019/texmf-dist/fonts/type1/public/pl/plmi6.pfb></usr/local/t
-exlive/2019/texmf-dist/fonts/type1/public/pl/plmi8.pfb></usr/local/texlive/2019
-/texmf-dist/fonts/type1/public/pl/plr12.pfb></usr/local/texlive/2019/texmf-dist
-/fonts/type1/public/pl/plr17.pfb></usr/local/texlive/2019/texmf-dist/fonts/type
-1/public/pl/plr6.pfb></usr/local/texlive/2019/texmf-dist/fonts/type1/public/pl/
-plr8.pfb></usr/local/texlive/2019/texmf-dist/fonts/type1/public/pl/plsy10.pfb><
-/usr/local/texlive/2019/texmf-dist/fonts/type1/public/pl/plsy8.pfb></usr/local/
-texlive/2019/texmf-dist/fonts/type1/public/pl/plti12.pfb>
-Output written on report.pdf (5 pages, 92126 bytes).
+{/usr/local/texlive/2019/texmf-dist/fonts/enc/dvips/pl/plit.enc}{/usr/local/t
+exlive/2019/texmf-dist/fonts/enc/dvips/pl/plrm.enc}{/usr/local/texlive/2019/tex
+mf-dist/fonts/enc/dvips/pl/plmi.enc}{/usr/local/texlive/2019/texmf-dist/fonts/e
+nc/dvips/pl/plme.enc}{/usr/local/texlive/2019/texmf-dist/fonts/enc/dvips/pl/plm
+s.enc}</usr/local/texlive/2019/texmf-dist/fonts/type1/public/amsfonts/symbols/m
+sbm10.pfb></usr/local/texlive/2019/texmf-dist/fonts/type1/public/pl/plbx12.pfb>
+</usr/local/texlive/2019/texmf-dist/fonts/type1/public/pl/plbxti10.pfb></usr/lo
+cal/texlive/2019/texmf-dist/fonts/type1/public/pl/plex10.pfb></usr/local/texliv
+e/2019/texmf-dist/fonts/type1/public/pl/plmi12.pfb></usr/local/texlive/2019/tex
+mf-dist/fonts/type1/public/pl/plmi6.pfb></usr/local/texlive/2019/texmf-dist/fon
+ts/type1/public/pl/plmi8.pfb></usr/local/texlive/2019/texmf-dist/fonts/type1/pu
+blic/pl/plr12.pfb></usr/local/texlive/2019/texmf-dist/fonts/type1/public/pl/plr
+17.pfb></usr/local/texlive/2019/texmf-dist/fonts/type1/public/pl/plr6.pfb></usr
+/local/texlive/2019/texmf-dist/fonts/type1/public/pl/plr8.pfb></usr/local/texli
+ve/2019/texmf-dist/fonts/type1/public/pl/plsy10.pfb></usr/local/texlive/2019/te
+xmf-dist/fonts/type1/public/pl/plsy8.pfb></usr/local/texlive/2019/texmf-dist/fo
+nts/type1/public/pl/plti12.pfb>
+Output written on report.pdf (7 pages, 109785 bytes).
 PDF statistics:
- 77 PDF objects out of 1000 (max. 8388607)
- 56 compressed objects within 1 object stream
+ 89 PDF objects out of 1000 (max. 8388607)
+ 65 compressed objects within 1 object stream
  0 named destinations out of 1000 (max. 500000)
  1 words of extra memory for PDF output out of 10000 (max. 10000000)
 
