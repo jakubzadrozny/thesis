@@ -63,7 +63,7 @@ def train_vae(model, train_dataset, test_dataset, M=1, lbd=0.0, num_epochs=1000)
 if __name__ == '__main__':
     train_dataset = ModelnetDataset(filter=1)
     test_dataset = ModelnetDataset(filter=1, test=True)
-    model = PCVAE(latent_var=0.2)
+    model = PCVAE(latent_var=0.5)
     model.to(device)
     train_vae(model, train_dataset, test_dataset, num_epochs=5000, M=1)
 

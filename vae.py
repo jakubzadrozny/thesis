@@ -5,7 +5,8 @@ import torch.nn.functional as F
 from datasets import PC_OUT_DIM
 from modelutils import SimplePointnetEncoder, SaveableModule, prep_seq, cd, gaussian_sample
 
-HIDDEN = 1024
+HIDDEN_LARGE = 1024
+HIDDEN_SMALL = 512
 
 # DEFAULT_DECODER_DIMS = [LATENT, 1024, 1024, 1024, OUT_DIM]
 # DEFAULT_ENCODER_DIMS = [OUT_DIM, HIDDEN, HIDDEN, HIDDEN, 2*LATENT]
@@ -60,8 +61,8 @@ class PCVAE(VAE):
     def __init__(self, latent_dim=128, latent_var=1.0, rec_var=1e-3):
         super().__init__(latent_var=latent_var)
         self.rec_var_inv = 1.0/rec_var
-        self.decoder = prep_seq(latent_dim, HIDDEN/2, HIDDEN, HIDDEN, PC_OUT_DIM)
-        self.encoder = SimplePointnetEncoder(HIDDEN/2, 2*LATENT)
+        self.decoder = prep_seq(latent_dim, HIDDEN_SMALL, HIDDEN_LARGE, HIDDEN_LARGE, HIDDEN_LARGE, PC_OUT_DIM)
+        self.encoder = SimplePointnetEncoder(HIDDEN_LARGE, 2*LATENT)
         # self.encoder = prep_seq(*ENCODER_DIMS, bnorm=True)
 
     # def encode(self, x):
