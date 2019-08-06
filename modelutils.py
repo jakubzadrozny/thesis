@@ -71,19 +71,16 @@ def prep_seq(*dims, bnorm=False):
 
 
 class SimplePointnetEncoder(nn.Module):
-    def __init__(self, dim1, dim2):
+    def __init__(self, latent):
         super().__init__()
         self.feats = PointNetfeat()
-        self.fc1 = nn.Linear(1024, dim1)
-        self.fc2 = nn.Linear(dim1, dim2)
-        self.bnorm1 = nn.BatchNorm1d(1024)
-        self.bnorm2 = nn.BatchNorm1d(dim1)
+        self.fc = nn.Linear(1024, latent)
+        self.bnorm = nn.BatchNorm1d(1024)
 
     def forward(self, x):
         x = self.feats(x)[0]
-        x = self.bnorm1(F.relu(x))
-        x = self.bnorm2(F.relu(self.fc1(x)))
-        return self.fc2(x)
+        x = self.bnorm(F.relu(x))
+        return self.fc(x)
 
 
 class PointnetSoftmaxEncoder(SimplePointnetEncoder):

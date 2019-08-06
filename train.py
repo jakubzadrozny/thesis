@@ -3,7 +3,7 @@ from torch.optim import Adam
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
 
-from datasets import ModelnetDataset
+from datasets import JointDataset
 from vae import PCVAE
 from eval import loss_on_loader
 
@@ -30,7 +30,7 @@ def train_unsupervised(model, optimizer, scheduler, train_loader, test_loader,
 
             scheduler.step()
 
-            if (epoch % 20) == 1 or epoch == num_epochs-1:
+            if (epoch % 50) == 1 or epoch == num_epochs-1:
                 train_loss, train_stats = loss_on_loader(model, train_loader, M=M, device=device)
                 test_loss, test_stats = loss_on_loader(model, test_loader, M=M, device=device)
                 print("Epoch {epoch}\ntrain loss={train_loss}, train stats={train_stats}\n"
@@ -61,8 +61,8 @@ def train_vae(model, train_dataset, test_dataset, M=1, lbd=0.0, num_epochs=1000)
 
 
 if __name__ == '__main__':
-    train_dataset = ModelnetDataset(filter=1)
-    test_dataset = ModelnetDataset(filter=1, test=True)
+    train_dataset = JointDataset(filter=1)
+    test_dataset = JointDataset(filter=1, test=True)
     model = PCVAE(latent_var=0.5)
     model.to(device)
     train_vae(model, train_dataset, test_dataset, num_epochs=5000, M=1)
