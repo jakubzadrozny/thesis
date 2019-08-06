@@ -51,9 +51,9 @@ def train_unsupervised(model, optimizer, scheduler, train_loader, test_loader,
 
 def train_vae(model, train_dataset, test_dataset, M=1, lbd=0.0, num_epochs=1000):
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4, drop_last=True)
-    test_loader = DataLoader(test_dataset, batch_size=32, num_workers=2, drop_last=True)
+    test_loader = DataLoader(test_dataset, batch_size=32, num_workers=4, drop_last=True)
 
-    optimizer = Adam(model.parameters(), lr=2e-4)
+    optimizer = Adam(model.parameters(), lr=1e-4)
     scheduler = StepLR(optimizer, step_size=1000, gamma=0.5)
 
     train_unsupervised(model, optimizer, scheduler, train_loader, test_loader,
@@ -63,9 +63,9 @@ def train_vae(model, train_dataset, test_dataset, M=1, lbd=0.0, num_epochs=1000)
 if __name__ == '__main__':
     train_dataset = ModelnetDataset(filter=1)
     test_dataset = ModelnetDataset(filter=1, test=True)
-    model = PCVAE()
+    model = PCVAE(latent_var=0.2)
     model.to(device)
-    train_vae(model, train_dataset, test_dataset, num_epochs=6000, M=1)
+    train_vae(model, train_dataset, test_dataset, num_epochs=5000, M=1)
 
 
 # def train_m2(model, train_dataset, drop_labels=0.0, log_every=200):

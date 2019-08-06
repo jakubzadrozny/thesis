@@ -13,6 +13,7 @@ TRAIN_FILE_BASE = 'ply_data_train'
 TEST_FILE_BASE = 'ply_data_test'
 DATA_FILE_EXT = '.h5'
 
+PC_OUT_DIM = 3*2048
 FAVOURITE_CLASSES = [8, 0, 30]
 
 def one_hot(y, K):

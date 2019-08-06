@@ -2,34 +2,25 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
+from datasets import PC_OUT_DIM
 from modelutils import SimplePointnetEncoder, SaveableModule, prep_seq, cd, gaussian_sample
 
-LATENT = 128
-# LATENT_VAR = 0.5
-# LATENT_VAR_INV = 1.0 / LATENT_VAR
-# LATENT_VAR_LOG = torch.log(torch.tensor(LATENT_VAR)).item()
-
 HIDDEN = 1024
-OUT_DIM = 3*2048
-DECODER_DIMS = [LATENT, 512, HIDDEN, HIDDEN, 2048, OUT_DIM]
-# ENCODER_DIMS = [OUT_DIM, HIDDEN, HIDDEN, HIDDEN, 2*LATENT]
 
-# MNIST_LATENT = 20
-# MNIST_HIDDEN = 500
-# MNIST_INPUT_DIM = 784
-
+# DEFAULT_DECODER_DIMS = [LATENT, 1024, 1024, 1024, OUT_DIM]
+# DEFAULT_ENCODER_DIMS = [OUT_DIM, HIDDEN, HIDDEN, HIDDEN, 2*LATENT]
 
 class VAE(SaveableModule):
 
-    def __init__(self):
+    def __init__(self, latent_var=1.0):
         super().__init__()
+        self.latent_var = latent_var
+        self.latent_var_inv = 1.0 / self.latent_var
+        self.latent_var_log = torch.log(torch.tensor(self.latent_var)).item()
 
     def encode(self, x):
-        # x = self.encoder(x)
-        # return torch.chunk(x, 2, dim=1)
-        mi = self.mi_encoder(x)
-        sigma = self.sigma_encoder(x)
-        return mi, sigma
+        x = self.encoder(x)
+        return torch.chunk(x, 2, dim=1)
 
     def decode(self, z_mean, z_log_sigma2):
         z = gaussian_sample(z_mean, z_log_sigma2)
@@ -46,17 +37,11 @@ class VAE(SaveableModule):
 
     def elbo_loss(self, x, M=1, lbd=0.0):
         z_mean, z_log_sigma2 = self.encode(x)
-        KL_loss = torch.mean(
-            0.5*torch.sum(torch.exp(z_log_sigma2) + z_mean**2 - z_log_sigma2 - 1.0, dim=1)
-        )
-        # KL_loss = torch.mean(torch.clamp(
-        #     0.5*torch.sum(
-        #         LATENT_VAR_INV*(torch.exp(z_log_sigma2)+z_mean**2)
-        #         -z_log_sigma2
-        #         +LATENT_VAR_LOG
-        #         -1.0, dim=1),
-        #     min=lbd
-        # ))
+        KL_loss = torch.mean(torch.clamp(
+            0.5*torch.sum(
+                self.latent_var_inv*(torch.exp(z_log_sigma2) + z_mean**2)
+                - z_log_sigma2 - 1.0 + self.latent_var_log, dim=1),
+        min=lbd))
 
         rec_loss = 0
         for i in range(M):
@@ -72,12 +57,11 @@ class PCVAE(VAE):
 
     DEFAULT_SAVED_NAME = 'pcvae'
 
-    def __init__(self, outvar=1e-3):
-        super(VAE, self).__init__()
-        self.outvar = outvar
-        self.decoder = prep_seq(*DECODER_DIMS)
-        self.mi_encoder = SimplePointnetEncoder(LATENT)
-        self.sigma_encoder = SimplePointnetEncoder(LATENT)
+    def __init__(self, latent_dim=128, latent_var=1.0, rec_var=1e-3):
+        super().__init__(latent_var=latent_var)
+        self.rec_var_inv = 1.0/rec_var
+        self.decoder = prep_seq(latent_dim, HIDDEN/2, HIDDEN, HIDDEN, PC_OUT_DIM)
+        self.encoder = SimplePointnetEncoder(HIDDEN/2, 2*LATENT)
         # self.encoder = prep_seq(*ENCODER_DIMS, bnorm=True)
 
     # def encode(self, x):
@@ -85,8 +69,12 @@ class PCVAE(VAE):
     #     return super().encode(x)
 
     def rec_loss(self, x, rec):
-        return 1/self.outvar * torch.mean(cd(rec, x))
+        return self.rec_var_inv*torch.mean(cd(rec, x))
 
+
+# MNIST_LATENT = 20
+# MNIST_HIDDEN = 500
+# MNIST_INPUT_DIM = 784
 
 # class MNISTVAE(VAE):
 #

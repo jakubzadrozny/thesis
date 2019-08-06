@@ -10,6 +10,7 @@ MODELS_DIR = 'trained'
 MODELS_EXT = '.dms'
 
 if torch.cuda.is_available():
+    print('Using fast Chamfer distance implementation...')
     from chamfer_distance import ChamferDistance
     cdist = ChamferDistance()
     def cd(x, y):
@@ -70,17 +71,19 @@ def prep_seq(*dims, bnorm=False):
 
 
 class SimplePointnetEncoder(nn.Module):
-    def __init__(self, latent):
+    def __init__(self, dim1, dim2):
         super().__init__()
-        self.model = PointNetfeat()
-        self.fc = nn.Linear(1024, latent)
-        self.bnorm = nn.BatchNorm1d(1024)
+        self.feats = PointNetfeat()
+        self.fc1 = nn.Linear(1024, dim1)
+        self.fc2 = nn.Linear(dim1, dim2)
+        self.bnorm1 = nn.BatchNorm1d(1024)
+        self.bnorm2 = nn.BatchNorm1d(dim1)
 
     def forward(self, x):
-        x = F.relu(self.model(x)[0])
-        x = self.bnorm(x)
-        x = self.fc(x)
-        return x
+        x = self.feats(x)[0]
+        x = self.bnorm1(F.relu(x))
+        x = self.bnorm2(F.relu(self.fc1(x)))
+        return self.fc2(x)
 
 
 class PointnetSoftmaxEncoder(SimplePointnetEncoder):
