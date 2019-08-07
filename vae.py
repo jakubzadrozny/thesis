@@ -57,7 +57,7 @@ class PCVAE(VAE):
     def __init__(self, latent=128, decoder=[1024, 1024, 1024], encoder=[], latent_var=1.0, rec_var=1e-3):
         super().__init__(latent_var=latent_var)
         self.rec_var_inv = 1.0/rec_var
-        self.decoder = prep_seq([latent] + decoder + [PC_OUT_DIM])
+        self.decoder = prep_seq(latent, *decoder, PC_OUT_DIM)
         self.encoder = SimplePointnetEncoder(*encoder, 2*latent)
         # self.encoder = prep_seq(*ENCODER_DIMS, bnorm=True)
 
