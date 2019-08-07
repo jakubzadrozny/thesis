@@ -111,10 +111,10 @@ class ShapenetDataset(PCDataset):
         'https://drive.google.com/uc?export=download&id=1PMGe0miwnkXv3ZycxoQa1k-6qhKFX5TE',
         'https://drive.google.com/uc?export=download&id=1pz1Md8Z-bPMQ1afz264z4d8DCZoXqLbq',
         'https://drive.google.com/uc?export=download&id=1KnrrvRuaizZa2GZhG0IyVPO74IIodCnt',
+        'https://drive.google.com/uc?export=download&id=1cXcitlmm6IGtNdEuoTKfSg1Uzlyn-bB9',
     ]
 
     TEST_DATA_URLS = [
-        'https://drive.google.com/uc?export=download&id=1cXcitlmm6IGtNdEuoTKfSg1Uzlyn-bB9',
         'https://drive.google.com/uc?export=download&id=1IFl1B3F1r8tQj9JG1-50Wa02jnPOM5Rh',
         'https://drive.google.com/uc?export=download&id=11aCJmK7JyGkAsennArta1hICyaBgq0KI',
     ]
