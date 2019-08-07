@@ -1,9 +1,12 @@
+import math
+
 import torch
 from torch.optim import Adam
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
 
 from datasets import JointDataset
+from transforms import SetRotation
 from vae import PCVAE
 from eval import loss_on_loader
 
@@ -54,18 +57,18 @@ def train_vae(model, train_dataset, test_dataset, M=1, lbd=0.0, num_epochs=1000)
     test_loader = DataLoader(test_dataset, batch_size=32, num_workers=4, drop_last=True)
 
     optimizer = Adam(model.parameters(), lr=2e-4)
-    scheduler = StepLR(optimizer, step_size=1000, gamma=0.5)
+    scheduler = StepLR(optimizer, step_size=800, gamma=0.5)
 
     train_unsupervised(model, optimizer, scheduler, train_loader, test_loader,
                        lbd=lbd, M=M, num_epochs=num_epochs)
 
 
 if __name__ == '__main__':
-    train_dataset = JointDataset(filter=1)
-    test_dataset = JointDataset(filter=1, test=True)
-    model = PCVAE(latent_var=0.5)
+    train_dataset = JointDataset(filter=1, transform_shapenet=SetRotation((0, math.acos(0), 0)))
+    test_dataset = JointDataset(filter=1, test=True, transform_shapenet=SetRotation((0, math.acos(0), 0)))
+    model = PCVAE(decoder=[512, 1024, 1024, 2048], encoder=[1024])
     model.to(device)
-    train_vae(model, train_dataset, test_dataset, num_epochs=5000, M=1)
+    train_vae(model, train_dataset, test_dataset, num_epochs=4000, M=1)
 
 
 # def train_m2(model, train_dataset, drop_labels=0.0, log_every=200):

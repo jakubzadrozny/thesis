@@ -71,10 +71,10 @@ def prep_seq(*dims, bnorm=False):
 
 
 class SimplePointnetEncoder(nn.Module):
-    def __init__(self, latent):
+    def __init__(self, *dims):
         super().__init__()
         self.feats = PointNetfeat()
-        self.fc = nn.Linear(1024, latent)
+        self.fc = prep_seq(dims, bnorm=True)
         self.bnorm = nn.BatchNorm1d(1024)
 
     def forward(self, x):
