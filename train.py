@@ -33,7 +33,7 @@ def train_unsupervised(model, optimizer, scheduler, train_loader, test_loader,
 
             scheduler.step()
 
-            if (epoch % 50) == 1 or epoch == num_epochs-1:
+            if (epoch % 25) == 1 or epoch == num_epochs-1:
                 train_loss, train_stats = loss_on_loader(model, train_loader, M=M, device=device)
                 test_loss, test_stats = loss_on_loader(model, test_loader, M=M, device=device)
                 print("Epoch {epoch}\ntrain loss={train_loss}, train stats={train_stats}\n"

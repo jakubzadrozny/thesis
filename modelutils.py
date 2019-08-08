@@ -4,17 +4,41 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
-from chamfer_distance import ChamferDistance
 from pointnet import PointNetfeat
 
 MODELS_DIR = 'trained'
 MODELS_EXT = '.dms'
 
-def cd(x, y):
-    x = x.permute(0, 2, 1)
-    y = y.permute(0, 2, 1)
-    d1, d2 = ChamferDistance()(x, y)
-    return torch.sum(d1, dim=1) + torch.sum(d2, dim=1)
+if torch.cuda.is_available():
+    from chamfer_distance import ChamferDistance
+    def cd(x, y):
+        x = x.permute(0, 2, 1)
+        y = y.permute(0, 2, 1)
+        d1, d2 = ChamferDistance()(x, y)
+        return torch.sum(d1, dim=1) + torch.sum(d2, dim=1)
+else:
+    def cd(S, T):
+        S1 = S.permute(0, 2, 1).unsqueeze(2)
+        T1 = T.permute(0, 2, 1).unsqueeze(1)
+        d = torch.sum(torch.pow(S1 - T1, 2), dim=3)
+
+        # minS = torch.argmin(d, dim=2).expand((3, -1, -1)).permute(1, 0, 2)
+        # minT = torch.argmin(d, dim=1).expand((3, -1, -1)).permute(1, 0, 2)
+        # T2 = torch.gather(T, 2, minS)
+        # S2 = torch.gather(S, 2, minT)
+        # d1 = dist1.log_prob(T2)
+        # d2 = dist2.log_prob(S2)
+
+        d1 = torch.sum(torch.min(d, dim=2)[0], dim=1)
+        d2 = torch.sum(torch.min(d, dim=1)[0], dim=1)
+        # d1 = torch.sum( d1_center * torch.min(d, dim=2)[0], dim=1 )
+        # d2 = torch.sum( d2_center * torch.min(d, dim=1)[0], dim=1 )
+        # S_center = S.mean(dim=1, keepdim=True)
+        # T_center = T.mean(dim=1, keepdim=True)
+        # d1_cener = torch.sum(torch.pow(S - S_center, 2), dim=3)
+        # d2_center = torch.sum(torch.pow(T - T_center, 2), dim=3)
+
+        return d1+d2
 
 def one_hot(y, K):
     N = y.shape[0]
@@ -44,7 +68,7 @@ class SimplePointnetEncoder(nn.Module):
     def __init__(self, *dims):
         super().__init__()
         self.feats = PointNetfeat()
-        self.fc = prep_seq(*dims, bnorm=True)
+        self.fc = prep_seq(1024, *dims, bnorm=True)
         self.bnorm = nn.BatchNorm1d(1024)
 
     def forward(self, x):
@@ -124,37 +148,9 @@ class SaveableModule(nn.Module):
         torch.save(self.state_dict(), os.path.join(MODELS_DIR, name+MODELS_EXT))
 
     @staticmethod
-    def load_from_drive(model, name=None):
+    def load_from_drive(model, name=None, **kwargs):
         name = name if name is not None else model.DEFAULT_SAVED_NAME
-        loaded = model()
+        loaded = model(**kwargs)
         loaded.load_state_dict(torch.load(os.path.join(MODELS_DIR, name+MODELS_EXT)))
         loaded.eval()
         return loaded
-
-
-# def cd(S, T):
-    # S1 = S.permute(0, 2, 1).unsqueeze(2)
-    # T1 = T.permute(0, 2, 1).unsqueeze(1)
-    # d = torch.sum(torch.pow(S1 - T1, 2), dim=3)
-
-    # minS = torch.argmin(d, dim=2).expand((3, -1, -1)).permute(1, 0, 2)
-    # minT = torch.argmin(d, dim=1).expand((3, -1, -1)).permute(1, 0, 2)
-    # T2 = torch.gather(T, 2, minS)
-    # S2 = torch.gather(S, 2, minT)
-    # d1 = torch.sum(F.binary_cross_entropy(S, T2, reduction='none'), dim=[1, 2])
-    # d2 = torch.sum(F.binary_cross_entropy(S2, T, reduction='none'), dim=[1, 2])
-    # dist1 = Normal(loc=S, scale=torch.ones_like(S, device=S.device))
-    # dist2 = Normal(loc=T, scale=torch.ones_like(T, device=T.device))
-    # d1 = dist1.log_prob(T2)
-    # d2 = dist2.log_prob(S2)
-
-    # d1 = torch.sum(torch.min(d, dim=2)[0], dim=1)
-    # d2 = torch.sum(torch.min(d, dim=1)[0], dim=1)
-    # d1 = torch.sum( d1_center * torch.min(d, dim=2)[0], dim=1 )
-    # d2 = torch.sum( d2_center * torch.min(d, dim=1)[0], dim=1 )
-    # S_center = S.mean(dim=1, keepdim=True)
-    # T_center = T.mean(dim=1, keepdim=True)
-    # d1_cener = torch.sum(torch.pow(S - S_center, 2), dim=3)
-    # d2_center = torch.sum(torch.pow(T - T_center, 2), dim=3)
-
-    # return d1+d2
