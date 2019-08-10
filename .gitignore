@@ -1,4 +1,6 @@
 data/
 trained/
+report/
+experiments.ipynb
 __pycache__/
 .ipynb_checkpoints/

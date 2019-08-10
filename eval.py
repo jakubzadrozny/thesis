@@ -1,10 +1,12 @@
+from collections import defaultdict
+
 import torch
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
 def loss_on_loader(model, loader, M=1, device=device):
-    total = 0
-    total_stats = None
+    total = 0.0
+    total_stats = defaultdict(float)
     batches = 0
 
     with torch.no_grad():
@@ -14,16 +16,13 @@ def loss_on_loader(model, loader, M=1, device=device):
             loss, stats = model.elbo_loss(x, M=M, lbd=0.0)
 
             total += loss
-            if total_stats is None:
-                total_stats = stats
-            else:
-                for key in stats:
-                    total_stats[key] += stats[key]
+            for key in stats:
+                total_stats[key] += stats[key]
 
-    total = total / batches
+    total = total.item() / batches
     for key in total_stats:
         total_stats[key] = total_stats[key] / batches
-        
+
     return total, total_stats
 
 

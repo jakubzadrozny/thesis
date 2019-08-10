@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.20 (TeX Live 2019) (preloaded format=pdflatex 2019.5.4)  1 AUG 2019 15:52
+This is pdfTeX, Version 3.14159265-2.6-1.40.20 (TeX Live 2019) (preloaded format=pdflatex 2019.5.4)  8 AUG 2019 15:30
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -148,144 +148,102 @@ Package: amsfonts 2013/01/14 v3.01 Basic AMSFonts support
 LaTeX Font Info:    Overwriting math alphabet `\mathfrak' in version `bold'
 (Font)                  U/euf/m/n --> U/euf/b/n on input line 106.
 )
-(/usr/local/texlive/2019/texmf-dist/tex/latex/cite/cite.sty
-LaTeX Info: Redefining \cite on input line 302.
-LaTeX Info: Redefining \nocite on input line 332.
-Package: cite 2015/02/27  v 5.5
-) (./report.aux)
+(./report.aux)
 \openout1 = `report.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 14.
-LaTeX Font Info:    ... okay on input line 14.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 14.
-LaTeX Font Info:    ... okay on input line 14.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 14.
-LaTeX Font Info:    ... okay on input line 14.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 14.
-LaTeX Font Info:    ... okay on input line 14.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 14.
-LaTeX Font Info:    ... okay on input line 14.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 14.
-LaTeX Font Info:    ... okay on input line 14.
-LaTeX Font Info:    Checking defaults for OT4/cmr/m/n on input line 14.
-LaTeX Font Info:    ... okay on input line 14.
-LaTeX Font Info:    Try loading font information for OML+plm on input line 16.
-
-(/usr/local/texlive/2019/texmf-dist/tex/latex/polski/omlplm.fd
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 12.
+LaTeX Font Info:    ... okay on input line 12.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 12.
+LaTeX Font Info:    ... okay on input line 12.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 12.
+LaTeX Font Info:    ... okay on input line 12.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 12.
+LaTeX Font Info:    ... okay on input line 12.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 12.
+LaTeX Font Info:    ... okay on input line 12.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 12.
+LaTeX Font Info:    ... okay on input line 12.
+LaTeX Font Info:    Checking defaults for OT4/cmr/m/n on input line 12.
+LaTeX Font Info:    ... okay on input line 12.
+LaTeX Font Info:    Try loading font information for OML+plm on input line 14.
+ (/usr/local/texlive/2019/texmf-dist/tex/latex/polski/omlplm.fd
 File: omlplm.fd 2008/02/24 v1.2.1 Font defs for fonts PL (MW)
 )
-LaTeX Font Info:    Try loading font information for OMS+plsy on input line 16.
+LaTeX Font Info:    Try loading font information for OMS+plsy on input line 14.
 
 
 (/usr/local/texlive/2019/texmf-dist/tex/latex/polski/omsplsy.fd
 File: omsplsy.fd 2008/02/24 v1.2.1 Font defs for fonts PL (MW)
 )
-LaTeX Font Info:    Try loading font information for OMX+plex on input line 16.
+LaTeX Font Info:    Try loading font information for OMX+plex on input line 14.
 
 
 (/usr/local/texlive/2019/texmf-dist/tex/latex/polski/omxplex.fd
 File: omxplex.fd 2008/02/24 v1.2.1 Font defs for fonts PL (MW)
 )
 LaTeX Font Info:    External font `plex10' loaded for size
-(Font)              <14.4> on input line 16.
+(Font)              <14.4> on input line 14.
 LaTeX Font Info:    External font `plex10' loaded for size
-(Font)              <10> on input line 16.
+(Font)              <10> on input line 14.
 LaTeX Font Info:    External font `plex10' loaded for size
-(Font)              <7> on input line 16.
-LaTeX Font Info:    Try loading font information for U+msa on input line 16.
+(Font)              <7> on input line 14.
+LaTeX Font Info:    Try loading font information for U+msa on input line 14.
 
 (/usr/local/texlive/2019/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Try loading font information for U+msb on input line 16.
+LaTeX Font Info:    Try loading font information for U+msb on input line 14.
 
 (/usr/local/texlive/2019/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
-)
-LaTeX Font Info:    External font `plex10' loaded for size
-(Font)              <12> on input line 22.
-LaTeX Font Info:    External font `plex10' loaded for size
-(Font)              <8> on input line 22.
-LaTeX Font Info:    External font `plex10' loaded for size
-(Font)              <6> on input line 22.
+) [1
 
-Overfull \hbox (2.42929pt too wide) in paragraph at lines 45--49
+{/usr/local/texlive/2019/texmf-var/fonts/map/pdftex/updmap/pdftex.map}]
+LaTeX Font Info:    External font `plex10' loaded for size
+(Font)              <12> on input line 50.
+LaTeX Font Info:    External font `plex10' loaded for size
+(Font)              <8> on input line 50.
+LaTeX Font Info:    External font `plex10' loaded for size
+(Font)              <6> on input line 50.
+
+Overfull \hbox (2.42929pt too wide) in paragraph at lines 72--76
 \OT4/cmr/m/n/12 roz-kªa-du $\OML/plm/m/it/12 f\OT4/cmr/m/n/12 (\OML/plm/m/it/12
  z\OMS/plsy/m/n/12 j\OML/plm/m/it/12 x\OT4/cmr/m/n/12 ; \OML/plm/m/it/12 ^^R\OT
 4/cmr/m/n/12 )$, któ-ry na-zy-wa-my \OT4/cmr/m/it/12 re-pre-zen-ta-cj¡ \OT4/cmr
 /m/n/12 da-nych ge-ne-ro-wa-nych przez
  []
 
+[2] [3] [4] [5] [6]
 
-Overfull \hbox (58.88957pt too wide) detected at line 67
-[]
- []
+LaTeX Warning: Reference `fig:loss_decrease' on page 7 undefined on input line 
+297.
 
-[1
+[7]
 
-{/usr/local/texlive/2019/texmf-var/fonts/map/pdftex/updmap/pdftex.map}]
-[2] [3] [4]
-
-LaTeX Warning: Reference `sec:optim_task' on page 5 undefined on input line 209
-.
+LaTeX Warning: Reference `fig:simple_reconstructions' on page 8 undefined on in
+put line 310.
 
 
-LaTeX Warning: Reference `bib:modelnet40' on page 5 undefined on input line 210
-.
+LaTeX Warning: Reference `fig:interpolation' on page 8 undefined on input line 
+320.
 
 
-LaTeX Warning: Reference `sec:optim_task' on page 5 undefined on input line 218
-.
+LaTeX Warning: Reference `fig:random_latent' on page 8 undefined on input line 
+329.
 
 
-LaTeX Warning: Reference `bib:batch_normalization' on page 5 undefined on input
- line 221.
+LaTeX Warning: Reference `fig:pca_tsne' on page 8 undefined on input line 333.
 
-[5]
-
-LaTeX Warning: Reference `bib:pointnet' on page 6 undefined on input line 226.
-
-
-LaTeX Warning: Reference `tab:mlp_vs_pointnet' on page 6 undefined on input lin
-e 231.
-
-
-LaTeX Warning: Reference `eq:loss_f' on page 6 undefined on input line 237.
-
-
-LaTeX Warning: Reference `bib:adam' on page 6 undefined on input line 237.
-
-
-LaTeX Warning: Reference `fig:loss_decrease' on page 6 undefined on input line 
-239.
-
-
-LaTeX Warning: Reference `fig:simple_reconstructions' on page 6 undefined on in
-put line 246.
-
-
-LaTeX Warning: Reference `fig:interpolation' on page 6 undefined on input line 
-256.
-
-[6]
-
-LaTeX Warning: Reference `fig:random_latent' on page 7 undefined on input line 
-265.
-
-
-LaTeX Warning: Reference `fig:pca_tsne' on page 7 undefined on input line 269.
-
-No file report.bbl.
-[7] (./report.aux)
+[8] (./report.bbl) [9] (./report.aux)
 
 LaTeX Warning: There were undefined references.
 
  ) 
 Here is how much of TeX's memory you used:
- 1317 strings out of 492618
- 18084 string characters out of 6129501
- 80410 words of memory out of 5000000
- 5240 multiletter control sequences out of 15000+600000
+ 1237 strings out of 492618
+ 17001 string characters out of 6129501
+ 80329 words of memory out of 5000000
+ 5161 multiletter control sequences out of 15000+600000
  17159 words of font info for 53 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  27i,18n,25p,223b,197s stack positions out of 5000i,500n,10000p,200000b,80000s
@@ -306,10 +264,10 @@ blic/pl/plr12.pfb></usr/local/texlive/2019/texmf-dist/fonts/type1/public/pl/plr
 ve/2019/texmf-dist/fonts/type1/public/pl/plsy10.pfb></usr/local/texlive/2019/te
 xmf-dist/fonts/type1/public/pl/plsy8.pfb></usr/local/texlive/2019/texmf-dist/fo
 nts/type1/public/pl/plti12.pfb>
-Output written on report.pdf (7 pages, 109785 bytes).
+Output written on report.pdf (9 pages, 117639 bytes).
 PDF statistics:
- 89 PDF objects out of 1000 (max. 8388607)
- 65 compressed objects within 1 object stream
+ 95 PDF objects out of 1000 (max. 8388607)
+ 69 compressed objects within 1 object stream
  0 named destinations out of 1000 (max. 500000)
  1 words of extra memory for PDF output out of 10000 (max. 10000000)
 
