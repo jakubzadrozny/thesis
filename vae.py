@@ -3,24 +3,29 @@ from torch import nn
 import torch.nn.functional as F
 
 from datasets import PC_OUT_DIM
-from modelutils import SimplePointnetEncoder, SaveableModule, prep_seq, cd, gaussian_sample
+from modelutils import (SimplePointnetEncoder, SaveableModule, prep_seq, cd,
+                        normal_sample, beta_sample, normal_kl, beta_kl)
 
-# DEFAULT_ENCODER_DIMS = [OUT_DIM, HIDDEN, HIDDEN, HIDDEN, 2*LATENT]
+ALPHA_PRIOR = 0.01
+BETA_PRIOR = 0.01
+
+def beta_kl_loss(alpha, beta, lbd=0.0):
+    return kl_loss(alpha, beta, torch.full_like(alpha, ALPHA_PRIOR), torch.full_like(beta, BETA_PRIOR), lbd=lbd)
 
 class VAE(SaveableModule):
 
-    def __init__(self, latent_var=1.0):
+    def __init__(self):
         super().__init__()
-        self.latent_var = latent_var
-        self.latent_var_inv = 1.0 / self.latent_var
-        self.latent_var_log = torch.log(torch.tensor(self.latent_var)).item()
+        # self.latent_var = latent_var
+        # self.latent_var_inv = 1.0 / self.latent_var
+        # self.latent_var_log = torch.log(torch.tensor(self.latent_var)).item()
 
     def encode(self, x):
         x = self.encoder(x)
         return torch.chunk(x, 2, dim=1)
 
-    def decode(self, z_mean, z_log_sigma2):
-        z = gaussian_sample(z_mean, z_log_sigma2)
+    def decode(self, alpha, beta):
+        z = self.sample(alpha, beta)
         rec = self.decoder(z)
         return rec
 
@@ -33,16 +38,12 @@ class VAE(SaveableModule):
         return rec, z_mean
 
     def elbo_loss(self, x, M=1, lbd=0.0):
-        z_mean, z_log_sigma2 = self.encode(x)
-        KL_loss = torch.mean(torch.clamp(
-            0.5*torch.sum(
-                self.latent_var_inv*(torch.exp(z_log_sigma2) + z_mean**2)
-                - z_log_sigma2 - 1.0 + self.latent_var_log, dim=1),
-        min=lbd))
+        alpha, beta = self.encode(x)
+        KL_loss = self.kl_loss(alpha, beta, lbd=lbd)
 
         rec_loss = 0
         for i in range(M):
-            rec = self.decode(z_mean, z_log_sigma2).view(x.shape)
+            rec = self.decode(alpha, beta).view(x.shape)
             rec_loss += self.rec_loss(x, rec)
         rec_loss /= M
 
@@ -51,19 +52,19 @@ class VAE(SaveableModule):
 
 
 class PCVAE(VAE):
-
     DEFAULT_SAVED_NAME = 'pcvae'
 
-    def __init__(self, latent=128, decoder=[1024, 1024, 1024], encoder=[], latent_var=1.0, rec_var=1e-3):
-        super().__init__(latent_var=latent_var)
+    def __init__(self, latent=128, decoder=[1024, 1024, 1024], encoder=[], rec_var=1e-3, prior='normal'):
+        super().__init__()
         self.rec_var_inv = 1.0/rec_var
         self.decoder = prep_seq(latent, *decoder, PC_OUT_DIM)
         self.encoder = SimplePointnetEncoder(*encoder, 2*latent)
-        # self.encoder = prep_seq(*ENCODER_DIMS, bnorm=True)
-
-    # def encode(self, x):
-    #     x = x.reshape(x.shape[0], -1)
-    #     return super().encode(x)
+        if prior == 'normal':
+            self.kl_loss = normal_kl
+            self.sample = normal_sample
+        else:
+            self.kl_loss = beta_kl_loss
+            self.sample = beta_sample
 
     def rec_loss(self, x, rec):
         return self.rec_var_inv*torch.mean(cd(rec, x))
