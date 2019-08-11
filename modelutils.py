@@ -3,7 +3,6 @@ import os.path
 import torch
 from torch import nn
 import torch.nn.functional as F
-from torch.distributions import normal, beta
 
 from pointnet import PointNetfeat
 
@@ -46,31 +45,6 @@ def one_hot(y, K):
     x = torch.zeros((N, K), device=y.device)
     x[torch.arange(0, N, 1), y] = 1
     return x
-
-def logbeta(a, b):
-    return torch.mvlgamma(a,1)+torch.mvlgamma(b,1)-torch.mvlgamma(a+b,1)
-
-def normal_kl(z_mean, z_log_sigma2, lbd=0.0):
-    return torch.mean(torch.clamp(
-        0.5*torch.sum(torch.exp(z_log_sigma2) + z_mean**2 - z_log_sigma2 - 1.0, dim=1), min=lbd))
-
-def beta_kl(alpha1, beta1, alpha2, beta2, lbd=0.0):
-    return torch.mean(torch.clamp(
-        torch.sum(
-            logbeta(alpha2, beta2)-logbeta(alpha1, beta1)
-            + (alpha1-alpha2)*torch.digamma(alpha1)
-            + (beta1-beta2)*torch.digamma(beta1)
-            + (alpha2-alpha1+beta2-beta1)*torch.digamma(alpha1+beta1)
-        , dim=1), min=lbd))
-
-def normal_sample(z_mean, z_log_sigma2):
-    return normal.Normal(z_mean, torch.exp(0.5*z_log_sigma2)).rsample()
-    # z_sigma = torch.exp(0.5 * z_log_sigma2)
-    # epsilon = torch.randn_like(z_mean)
-    # return epsilon*z_sigma + z_mean
-
-def beta_sample(alpha, beta):
-    return beta.Beta(torch.exp(alpha), torch.exp(beta)).rsample()
 
 def prep_seq(*dims, bnorm=False):
     layers = []
