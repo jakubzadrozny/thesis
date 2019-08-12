@@ -9,7 +9,7 @@ from modelutils import SimplePointnetEncoder, SaveableModule, prep_seq, cd
 ALPHA_PRIOR = 0.01
 BETA_PRIOR = 0.01
 
-def exp_with_eps(x, eps=1e-6):
+def exp_with_eps(x, eps=1e-9):
     return torch.clamp(torch.exp(x), min=eps, max=1.0/eps)
 
 def logbeta(a, b):
@@ -38,7 +38,7 @@ def normal_sample(z_mean, z_log_sigma2):
     # epsilon = torch.randn_like(z_mean)
     # return epsilon*z_sigma + z_mean
 
-def beta_sample(alpha, beta, eps=1e-6):
+def beta_sample(alpha, beta, eps=1e-9):
     # return distrib.beta.Beta(torch.exp(alpha), torch.exp(beta)).rsample()
     x = distrib.gamma.Gamma(alpha, torch.ones_like(alpha)).rsample()
     y = distrib.gamma.Gamma(beta, torch.ones_like(beta)).rsample()
