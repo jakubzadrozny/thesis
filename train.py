@@ -19,9 +19,9 @@ def train_unsupervised(model, optimizer, scheduler, train_loader, test_loader,
     print('Training your model!\n')
     model.train()
 
-    best_params = None
-    best_loss = float('inf')
-    logs = defaultdict(list)
+    # best_params = None
+    # best_loss = float('inf')
+    # logs = defaultdict(list)
 
     try:
         for epoch in range(num_epochs):
@@ -47,7 +47,7 @@ def train_unsupervised(model, optimizer, scheduler, train_loader, test_loader,
                 # best_loss = test_loss
                 # best_params = model.state_dict()
 
-            if (epoch % 10) == 1 or epoch == num_epochs-1:
+            if (epoch % 25) == 1 or epoch == num_epochs-1:
                 train_loss, train_stats = loss_on_loader(model, train_loader, M=M, device=device)
                 test_loss, test_stats = loss_on_loader(model, test_loader, M=M, device=device)
 
@@ -60,7 +60,7 @@ def train_unsupervised(model, optimizer, scheduler, train_loader, test_loader,
     except KeyboardInterrupt:
         pass
 
-    model.load_state_dict(best_params)
+    # model.load_state_dict(best_params)
     model.eval()
     model.cpu()
 
@@ -88,7 +88,7 @@ def train_vae(model, train_dataset, test_dataset, M=1, lbd=0.0, num_epochs=1000)
 if __name__ == '__main__':
     train_dataset = JointDataset(filter=1, transform_shapenet=SetRotation((0, math.acos(0), 0)))
     test_dataset = JointDataset(filter=1, test=True, transform_shapenet=SetRotation((0, math.acos(0), 0)))
-    model = PCVAE(decoder=[512, 1024, 1024, 2048], prior='beta')
+    model = PCVAE(decoder=[1024, 1024, 1024, 2048], encoder=[1024], prior='beta')
     model.to(device)
     train_vae(model, train_dataset, test_dataset, num_epochs=2000, M=1)
 
