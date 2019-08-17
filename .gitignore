@@ -1,6 +1,15 @@
+# Large recoverable files
 data/
 trained/
-report/
-experiments.ipynb
+
+# Cache
 __pycache__/
+
+# Notebooks
 .ipynb_checkpoints/
+*.ipynb
+
+# Report stuff
+*.npy
+report/
+!report/report.tex
