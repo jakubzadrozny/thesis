@@ -15,13 +15,13 @@ from eval import loss_on_loader
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
 def train_unsupervised(model, optimizer, scheduler, train_loader, test_loader,
-                       num_epochs=1000, M=1, lbd=0.0):
+                       num_epochs=1000, M=1):
     print('Training your model!\n')
     model.train()
 
-    # best_params = None
-    # best_loss = float('inf')
-    # logs = defaultdict(list)
+    best_params = None
+    best_loss = float('inf')
+    logs = defaultdict(list)
 
     try:
         for epoch in range(num_epochs):
@@ -29,27 +29,27 @@ def train_unsupervised(model, optimizer, scheduler, train_loader, test_loader,
                 x = x.to(device)
                 optimizer.zero_grad()
 
-                loss, stats = model.elbo_loss(x, M=M, lbd=lbd)
+                loss, stats = model.elbo_loss(x, M=M)
 
                 loss.backward()
                 optimizer.step()
 
             scheduler.step()
 
-            # logs['train_loss'].append(train_loss)
-            # logs['test_loss'].append(test_loss)
-            # for key, val in train_stats.items():
-            #     logs['train'+key].append(val)
-            # for key, val in test_stats.items():
-            #     logs['test'+key].append(val)
-
-            # if test_loss < best_loss:
-                # best_loss = test_loss
-                # best_params = model.state_dict()
-
-            if (epoch % 25) == 1 or epoch == num_epochs-1:
+            if (epoch % 5) == 1 or epoch == num_epochs-1:
                 train_loss, train_stats = loss_on_loader(model, train_loader, M=M, device=device)
                 test_loss, test_stats = loss_on_loader(model, test_loader, M=M, device=device)
+
+                logs['train_loss'].append(train_loss)
+                logs['test_loss'].append(test_loss)
+                for key, val in train_stats.items():
+                    logs['train'+key].append(val)
+                for key, val in test_stats.items():
+                    logs['test'+key].append(val)
+
+                if test_loss < best_loss:
+                    best_loss = test_loss
+                    best_params = model.state_dict()
 
                 print("Epoch {epoch}\ntrain loss={train_loss}, train stats={train_stats}\n"
                       "test loss={test_loss}, test stats={test_stats}"
@@ -60,7 +60,7 @@ def train_unsupervised(model, optimizer, scheduler, train_loader, test_loader,
     except KeyboardInterrupt:
         pass
 
-    # model.load_state_dict(best_params)
+    model.load_state_dict(best_params)
     model.eval()
     model.cpu()
 
@@ -68,29 +68,29 @@ def train_unsupervised(model, optimizer, scheduler, train_loader, test_loader,
     model.save_to_drive()
     print('done.')
 
-    # print('Saving training logs...', end='')
-    # np_logs = np.stack([np.array(item) for item in logs.values()], axis=0)
-    # np.save('train_logs', np_logs)
-    # print('done.')
+    print('Saving training logs...', end='')
+    np_logs = np.stack([np.array(item) for item in logs.values()], axis=0)
+    np.save('train_logs', np_logs)
+    print('done.')
 
 
-def train_vae(model, train_dataset, test_dataset, M=1, lbd=0.0, num_epochs=1000):
+def train_vae(model, train_dataset, test_dataset, M=1, num_epochs=1000):
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4, drop_last=True)
     test_loader = DataLoader(test_dataset, batch_size=32, num_workers=4, drop_last=True)
 
     optimizer = Adam(model.parameters(), lr=2e-4)
-    scheduler = StepLR(optimizer, step_size=400, gamma=0.5)
+    scheduler = StepLR(optimizer, step_size=500, gamma=0.5)
 
     train_unsupervised(model, optimizer, scheduler, train_loader, test_loader,
-                       lbd=lbd, M=M, num_epochs=num_epochs)
+                       M=M, num_epochs=num_epochs)
 
 
 if __name__ == '__main__':
     train_dataset = JointDataset(filter=1, transform_shapenet=SetRotation((0, math.acos(0), 0)))
     test_dataset = JointDataset(filter=1, test=True, transform_shapenet=SetRotation((0, math.acos(0), 0)))
-    model = PCVAE(decoder=[1024, 1024, 1024, 2048], encoder=[1024], prior='beta')
+    model = NPCVAE()
     model.to(device)
-    train_vae(model, train_dataset, test_dataset, num_epochs=2000, M=1)
+    train_vae(model, train_dataset, test_dataset, num_epochs=3000, M=1)
 
 
 # def train_m2(model, train_dataset, drop_labels=0.0, log_every=200):
