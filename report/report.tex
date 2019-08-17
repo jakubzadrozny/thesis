@@ -1,0 +1,870 @@
+\documentclass{iithesis}
+\usepackage{polski}
+\usepackage[utf8]{inputenc}
+
+\usepackage{amsmath}
+\usepackage{amsfonts}
+
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows}
+% \usetikzlibrary{decorations.pathmorphing}
+
+\polishtitle    {Kompaktowe reprezentacje binarne i modele generatywne}
+\englishtitle   {Compact binary representations and generative models}
+\polishabstract {\ldots}
+\englishabstract{\ldots}
+\advisor        {dr Rafał Nowak}
+\author         {Jakub Zadrożny}
+\date           {6 września 2019}
+
+\begin{document}
+
+\chapter{Wprowadzenie}
+
+\chapter{Powiązane badania}
+
+\section{Chmury punktów 3D}
+\label{sec:related_pointnet}
+Silnym narzędziem do pracy z chmurami punktów 3D jest architektura \textbf{PointNet} \cite{pointnet},
+która umożliwa ekstrakcję cech (definiowanych przez wyuczalne parametry) z wejściowej chmury punktów.
+Istotną zaletą tej atchitektury jest odporność na permutacje punktów chmury wejściowej.
+Inne rozwiązania osiągnęły ten efekt przetwarzając chmury punktów na inne formaty (np. wykorzystujące voxele),
+przez co rozmiar przetwarzanych danych wzrasta. Dzięki zastosowaniu serii splotów jednowymiarowych,
+PointNet osiąga ten sam cel, zachowująć względną prostotę modelu.
+
+\section{Modele generatywne}
+Klasycznym wynikiem, który zapoczątkował prace nad modelami generatywnymi, jest autoenkoder wariacyjny
+(\textbf{VAE}) \cite{vae}. Jego najważniejszą zaletą jest probabilistyczny charakter,
+dzięki czemu możemy żądać, aby zmienne pośrednie (\textit{latent}) były zradnomizowane i pochodziły
+z pewnego zadanego rozkładu prawdopodobieństwa (z pewnymi ograniczeniami).
+Dzięki randomizacji zmiennych pośrednich uzyskujemy zagęszczenie przestrzeni reprezentacji,
+przez co niemal każdy punkt może zostać zdekodowany na realistyczne dane.
+Umożliwia to realizowanie zadań takich jak generowanie syntetycznych,
+realistycznych danych lub interpolacja znaczeniowa obiektów.
+
+\section{Estymacja gradientu wartości randomizowanych}
+Do wytrenowania autoenkodera wariacyjnego używa się najczęściej wariantu metody SGD, która
+wymaga wyliczania pochodnych funkcji kosztu po kolejnych parametrach modelu, co z kolei
+wymaga wyliczania pochodnych wartości pojawiających się we wszystkich warstwach po parametrach
+wartstw poprzednich (propagacja wstecz).
+Do wyliczenia funkcji kosztu w VAE używa się szacowania Monte Carlo, które opiera się na
+próbkowaniu zmiennej losowej. Oznacza to, że do wytrenowania autoenkodera wariacyjnego
+niezbędne jest obliczanie pochodnych wylosowanej zmiennej po parametrach rozkładu.
+W tym celu stosouje się dwie postawowe metody.
+
+Estymator \textbf{score function} opisany m.in. w \cite{score_fn} oferuje stosunkowo
+proste przybliżenie gradientu funkcji kosztu i można go stosować do szerokiej gamy rozkładów,
+jednak charakteryzuje się dużą wariancją oszacowania, co komplikuje proces trenowania.
+
+Drugim podejściem jest \textbf{pathwise gradients}, czyli tzw. trik repearametryzacyjny
+opsisywany m.in. w \cite{vae}. Metoda ta opiera się na przedstawieniu zmiennej $z$ pochodzącej
+z rozkładu $q(z;\theta)$ sparametryzowanego przez $\theta$ jako $z=\mathcal{T}(\epsilon;\theta)$,
+gdzie $\epsilon$ pochodzi z pewnego rokładu $q_0$ niezależnego od $\theta$, a
+$\mathcal{T}$ jest obliczalnym i różniczkowalnym po $\theta$ przekształceniem.
+Trik repearametryzacyjny jest łatwy do zastosowania dla części stosowanych rozkładów
+(szczególnie dla tych z rodziny kształtu i skali), jednak z uwagi na brak prostego przekształcenia
+$\mathcal{T}$ nie da się go wprost zastosować do niektórych istotnych rozkładów, np. gamma i beta.
+
+Rozszerzenie tej metody na kolejne rodziny rozkładów zostało zaproponowane w \cite{pathwise_gradients}.
+Autorzy wprowadzają metodę, która pozwala w efektywny sposób szacować gradienty funkcji kosztu,
+nawet gdy zmienne pośrednie pochodzą z trudnych rozkładów jak gamma i beta.
+
+\section{Klasteryzacja}
+
+\chapter{Metody}
+\section{Autoenkoder wariacyjny z rozkładem normalnym}
+\label{sec:vae_normal}
+Autoenkodery wariacyjne są dobrze znane i zbadane pod kątem niektórych zagadnień,
+np. analizy obrazów. Jednak zastosowanie ich do chmur punktów 3D wymaga opracowania
+dokładniejszej metody.
+
+Dalej zakładamy, że dysponujemy zbiorem danych
+$$
+\mathcal{X} = \{x_i \in \mathbb{R}^{d}\}_{i \in I}
+$$
+dla pewnego $d$ -- wymiaru. Ponadto zakładamy, że dane te są obserwacjami
+zmiennej losowej o rozkładzie następującej postaci
+\begin{equation}
+f(z, x; \theta) = f(z)f(x|z; \theta)
+\label{eq:generative_process_factorization}
+\end{equation}
+gdzie $z \in \mathbb{R}^k$ dla pewnego $k$ (wymiar przestrzeni reprezentacji) -- zmienna pośrednia (\textit{latent}), $x \in \mathbb{R}^d$ -- zmienna obserwowana,
+a $\theta$ -- parametr rozkładu. Dodatkowo niech
+\begin{equation}
+\begin{split}
+z &\sim \mathcal{N}(0, I_k) \\
+x|z &\sim \mathcal{N}(\mu_x(z; \theta), \mu_\sigma(z;\theta)I_d)
+\end{split}
+\label{eq:generative_process_distribs}
+\end{equation}
+gdzie $\mu_x,\,\mu_{\sigma}$ są skomplikowanymi obliczeniami
+wykonywanymi przez sieć neuronową sparametryzowaną przez $\theta$.
+
+\subsubsection{ELBO} \label{sec:elbo}
+Naszym celem jest odtworzenie parametrów rozkładu generującego $\theta$
+oraz rozkładu $f(z|x; \theta)$, który nazywamy \textit{reprezentacją} danych
+generowanych przez proces opsiany w
+(\ref{eq:generative_process_factorization}) i (\ref{eq:generative_process_distribs}).
+
+Niestety z powodu zastosowania skomplikowanych, nieliniowych
+transformacji dokładne odtworzenie rozkładu $f(z|x; \theta)$ jest niemożliwe.
+W tym celu wprowadzamy pewne przybliżenie tego rozkładu -- nazwijmy je
+$g(z|x; \phi)$.
+
+Niech $g(z|x; \theta)$ będzie gęstością
+rozkładu normalnego ze średnią $\rho_x(x; \phi)$ i wariancją $\rho_{\sigma}(x; \phi)$,
+gdzie $\rho_x,\,\rho_{\sigma}$ są reprezentowane przez sieci neuronowe
+parametryzowane przez $\phi$. Wtedy
+\begin{equation}
+\begin{split}
+KL(g(z|x;\phi) || f(z|x;\theta)) &= \mathbb{E}_{z\sim g(z|x;\phi)}\left[
+-\log\frac{f(z|x;\theta)}{g(z|x;\phi)}\right]= \\
+&=\mathbb{E}_{z\sim g(z|x;\phi)}\left[-\log\frac{f(z|x;\theta)f(x;\theta)}{g(z|x;\phi)f(x;\theta)}\right]= \\
+&=\mathbb{E}_{z\sim g(z|x;\phi)}\left[-\log\frac{f(z|x;\theta)f(x;\theta)}{g(z|x;\phi)}+\log f(x;\theta)\right] \\
+&=\mathbb{E}_{z\sim g(z|x;\phi)}\left[-\log\frac{f(z,x;\theta)}{g(z|x;\phi)}\right] +\log f(x;\theta)
+\end{split}
+\end{equation}
+gdzie $KL(\cdotp || \cdotp)$ jest odległością Kullbacka-Leiblera \cite{kl-cost}.
+Zatem
+\begin{equation}
+\log f(x;\theta) = KL(g(z|x;\phi) || f(z|x;\theta)) + \mathbb{E}_{z\sim g(z|x;\phi)}\left[\log\frac{f(z,x;\theta)}{g(z|x;\phi)}\right]
+\end{equation}
+Ponieważ $KL(\cdotp || \cdotp) \geq 0$, więc
+\begin{equation}
+\begin{split}
+\log f(x;\theta)  &\geq \mathbb{E}_{z\sim g(z|x;\phi)}\left[\log\frac{f(z,x;\theta)}{g(z|x;\phi)}\right] = \\
+&= \mathbb{E}_{z\sim g(z|x;\phi)}\left[\log\frac{f(x|z;\theta)f(z)}{g(z|x;\phi)}\right] = \\
+&=\mathbb{E}_{z\sim g(z|x;\phi)}\left[\log f(x|z;\theta)\right] - \mathbb{E}_{z\sim g(z|x;\phi)}\left[-\log\frac{f(z)}{g(z|x;\phi)}\right] =\\
+&=\mathbb{E}_{z\sim g(z|x;\phi)}\left[\log f(x|z;\theta)\right] - KL(g(z|x;\phi) || f(z))
+\end{split}
+\label{eq:elbo}
+\end{equation}
+Zatem dla dowolnego rozkładu aproksymującego $g(z|x;\phi)$ otrzymujemy dolne
+ograniczenie na prawdopodobieństwo wygenerowania zaobserwowanych danych.
+Dlatego część wzoru po prawej stronie od ostatniej równości
+nazywamy \textbf{ELBO} (\textit{evidence lower bound}). Możemy zauważyć, że ostateczna
+postać wzoru (\ref{eq:elbo}) składa się z dwóch części naturalnie odpowiadającymi dwóm
+celom, które chcemy zoptymalizować: pierwszy składnik odpowiada
+jakości rekonstrukcji obserwacji ze zmiennej ukrytej $z$
+(dlatego nazywany jest kosztem rekonstrukcji),
+natomiast drugi to odległość KL rozkładu aproksymującego
+$f(z|x;\theta)$ od naszego założenia na jego temat.
+
+\subsubsection{Zadanie optymalizacyjne} \label{sec:optim_task}
+Chcemy znaleźć układ parametrów $<\theta,\,\phi>$, który daje najlepszą
+gwarancję na prawdopodobieństwo wygenerowania zaobserwowanych danych (ELBO).
+W tym celu posłużymy się lekko zmodyfikowanym algorytmem SGD.
+Naszym zadaniem jest znalezienie
+\begin{equation}
+\label{eq:loss_f}
+\begin{split}
+\max_{\theta,\,\phi} \hat{\mathcal{L}}(\mathcal{X}, \theta, \phi) &= \sum_{i \in I}\mathcal{L}(x_i, \theta, \phi) = \\
+&=\sum_{i \in I} \left( \mathbb{E}_{z\sim g(z|x_i;\phi)}\left[\log f(x_i|z;\theta)\right] - KL(g(z|x_i;\phi) || f(z)) \right)
+\end{split}
+\end{equation}
+Ponieważ bardziej naturalnym zadaniem jest minimalizowanie funkcji kosztu,
+to rozwiążemy równoważne zadanie znalezienia
+\begin{equation}
+\min_{\theta,\,\phi} -\hat{\mathcal{L}}(\mathcal{X}, \theta, \phi)
+\end{equation}
+
+Żeby posłużyć się algorytmem SGD musimy umieć wyliczać i różniczkować
+oba składniki funckji $\mathcal{L}$.
+
+\subsubsection{Koszt KL}
+Odległość KL dwóch rozkładów normalnych o następujących parametrach
+\begin{equation*}
+\begin{split}
+\mathcal{N}_0 \sim \mathcal{N}(\mu_0, \Sigma_0) \\
+\mathcal{N}_1 \sim \mathcal{N}(\mu_1, \Sigma_1)
+\end{split}
+\end{equation*}
+dla pewncyh $\mu_0,\,\mu_1 \in \mathbb{R}^k,\ \Sigma_0, \Sigma_1 \in \mathbb{R}^{k \times k}$, wynosi
+\begin{equation*}
+KL(\mathcal{N}_0||\mathcal{N}_1) = \frac{1}{2} \left(\text{tr}(\Sigma_1^{-1}\Sigma_0)
++ (\mu_1-\mu_0)^T \Sigma_1^{-1} (\mu_1-\mu_0) -k + \log\frac{\det\Sigma_1}{\det\Sigma_0} \right)
+\end{equation*}
+Ponieważ zakładamy, że $f(z)$ jest rozkładem $z \sim \mathcal{N}(0, I_k)$, więc
+\begin{equation}
+KL(g(z|x;\phi) || f(z)) = \frac{1}{2}\sum_{i=1}^k
+\left( \rho_x(x;\phi)_i^2 + \rho_\sigma(x;\phi)_i^2 - \log(\rho_\sigma(x;\phi)_i^2)-1 \right)
+\label{eq:kl_loss}
+\end{equation}
+Wzór (\ref{eq:kl_loss}) można wyliczać i różniczkować analitycznie.
+
+\subsubsection{Koszt rekonstrukcji} \label{sec:rec_loss_normal}
+Drugiego składnika funckji $\mathcal{L}$, czyli kosztu rekonstrukcji,
+nie da się wyznaczyć analitycznie. Aby objeść ten problem, możemy metodą Monte Carlo
+oszacować wartość oczekiwaną przez średnią
+$$
+\mathbb{E}_{z\sim g(z|x;\phi)}\left[\log f(x_i|z;\theta)\right] \sim
+\frac{1}{m} \sum_{i=1}^m -\log f(x|z_i;\theta)
+$$
+gdzie $z_i \sim g(z|x;\phi)$. Taką wartość potrafimy już wyliczyć, ale nie
+potrafimy propagować gradientu do parametrów $\phi$ przez
+zaobserwowane wartości $z_i$.
+
+Wprowadzimy repearametryzację zmiennych $z_i$ -- możemy zauważyć, że zmienna
+$z_i=\rho_x(x;\phi)+\epsilon_i\rho_\sigma(x;\phi)$
+gdzie $\epsilon_i \sim \mathcal{N}(0, I_k)$
+ma rozkład $g(z|x;\phi)$ a ponadto możemy propagować gradient do parametrów $\phi$.
+Otrzymaliśmy zatem następujące przybliżenie na $\mathcal{L}$
+$$
+\mathbb{E}_{z\sim g(z|x;\phi)}\left[\log f(x_i|z;\theta)\right] \sim
+\frac{1}{m} \sum_{i=1}^m -\log f(x|z_i=\rho_x(x;\phi)+\epsilon_i\rho_\sigma(x;\phi);\theta)
+$$
+gdzie $\epsilon_i \sim \mathcal{N}(0, I_k)$
+
+Ponieważ $x|z \sim \mathcal{N}(\mu_x(z; \theta), \mu_\sigma(z;\theta)I_d)$, więc
+$$
+-\log f(x|z;\theta)=\sum_{i=1}^d \left( \frac{1}{2}\log(2\pi) +\log(\mu_\sigma(z;\theta)_i)
++\frac{(x-\mu_x(z;\theta)_i)^2}{2\mu_\sigma(z;\theta)_i^2} \right)
+$$
+jednak metryka ta niezbyt dobrze nadaje się do chmur punktów, ponieważ np.
+chcielibyśmy uznawać permutację punktów oryginalnej chmury za dobrą rekonstrukcję.
+Dlatego zamiast wyliczać \textit{stricte} $\log f(x|z;\theta)$ skorzystamy ze zmodyfikowanego
+\textit{Chamfer distance} danego wzorem
+\begin{equation}
+CD(\mathcal{X}_1,\mathcal{X}_2) = \sum_{x \in \mathcal{X}_1} \min_{y \in \mathcal{X}_2} ||x-y||_2^2
++ \sum_{x \in \mathcal{X}_2} \min_{y \in \mathcal{X}_1} ||x-y||_2^2
+\label{eq:chamfer_distance}
+\end{equation}
+gdzie $\mathcal{X}_1,\,\mathcal{X}_2$ są zbiorami punktów wielowymiarowych.
+Ściślej mówiąc, możemy potraktować $\mu_x(z;\theta) \in \mathbb{R}^{3 \cdotp m}$ jako chmurę
+$m$ punktów trójwymiarowych, oznaczmy ją $\hat{y}$. Ponadto dla $y \in \hat{y}$ niech
+$\sigma(y)$ oznacza 3-elementowy wektor wariancji $\mu_\sigma(z;\theta)$ utworzony ze
+składowych odpowiadających $y$. Za koszt rekonstrukcji przyjmiemy
+\begin{equation}
+\begin{split}
+\mathcal{L}_{rec}(\hat{x}|z,\theta,\phi) &= \sum_{x \in \hat{x}} \min_{y \in \hat{y}}
+\left( -\log p_{y,\sigma(y)}(x) \right) +\\
+&+ \sum_{y \in \hat{y}} \min_{x \in \hat{x}} \left( -\log p_{x,\sigma(y)}(y) \right)
+% \sum_{i=1}^3 \log(\mu_\sigma(z;\theta)_{y,i})+\frac{(x_i-y_i)^2}{2\mu_\sigma(z;\theta)_{y,i}^2} + \\
+% &+ \sum_{x \in \mu_x(z|\theta) \min_{y \in \hat{x}}
+% \sum_{i=1}^3 \log(\mu_\sigma(z;\theta)_{y,i})+\frac{(x_i-y_i)^2}{2\mu_\sigma(z;\theta)_{y,i}^2}
+\end{split}
+\end{equation}
+gdzie $p_{v,s}(x)$ jest gęstością rozkładu normalnego o średniej $v$ i macierzy kowariancji
+$sI$ w punkcie $x$.
+
+Po usunięcu stałych wyrazów można to zapisać jako
+\begin{equation} \label{eq:rec_loss}
+\begin{split}
+\mathcal{L}_{rec}(\hat{x}|z,\theta,\phi) &= \sum_{x \in \hat{x}} \min_{y \in \hat{y}} \sum_{i=1}^3
+\left( \log(\sigma(y)_i) + \frac{(x_i-y_i)^2}{2\sigma(y)_i^2} \right) +\\
+&+ \sum_{y \in \hat{y}} \min_{x \in \hat{x}} \sum_{i=1}^3
+\left( \log(\sigma(y)_i) + \frac{(x_i-y_i)^2}{2\sigma(y)_i^2} \right)
+\end{split}
+\end{equation}
+W obecnej wersji modelu dla uproszczenia przyjęto, że $\mu_\sigma(z;\theta) = \alpha$
+dla wszystkich $z$ i niezależnie od parametrów $\theta$ (tzn. przyjęto stałą wariancję dla
+danych wyjściowych). Wtedy wzór (\ref{eq:rec_loss}) upraszcza się do
+\begin{equation} \label{eq:final_rec_loss}
+\begin{split}
+\mathcal{L}_{rec}(\hat{x}|z,\theta,\phi) &= \frac{1}{2\alpha^2} \left(
+\sum_{x \in \hat{x}} \min_{y \in \hat{y}} ||x-y||_2^2 +
+\sum_{y \in \hat{y}} \min_{x \in \hat{x}} ||x-y||_2^2 \right) = \\
+&= \frac{1}{2\alpha^2} CD(\hat{x}, \hat{y})
+\end{split}
+\end{equation}
+
+\section{Autoenkoder wariacyjny z rozkładem Beta} \label{sec:vae_beta}
+Podobnie jak w sekcji \ref{sec:vae_normal} załóżmy, że posiadane przez nas dane
+są obserwacjami pewnej zmiennej losowej. Tym razem postawmy jednak założenie, że
+$z$ jest $k$-wymiarową zmienną, której składowe $z_i$ są niezależne oraz
+$$
+z_i \sim \text{Beta}(0.01, 0.01)
+$$
+dla $1 \leq i \leq k$, podczas gdy rozkład $x|z$ jest taki jak w (\ref{eq:generative_process_distribs}).
+
+Rozkład $\text{Beta}(0.01, 0.01)$ (rys. \ref{fig:beta_distrib}) jest bardzo silnie
+skupiony przy brzegach nośnika, t.j. 0 i 1. Przez regularyzowanie autoenkodera takim rozkładem
+chcemy, aby otrzymywane zmienne pośrednie były również bardzo blisko 0 i 1, dzięki czemu
+po ich zaokrągleniu i przekazaniu do dekodera błąd rekonstrukcji nie wzrośnie znacząco.
+
+\begin{figure}
+    \center{\includegraphics[width=0.7\textwidth]{images/beta_distrib.png}}
+    \caption{\label{fig:beta_distrib} Gęstość rozkładu $\text{Beta}(0.01, 0.01)$.
+    Istotne dla modelu jest silne skupienie gęstości przy brzegach nośnika.}
+\end{figure}
+
+Analogicznie do sekcji \ref{sec:elbo} wprowadzamy przybliżenie $g(z|x;\phi)$
+dla nieznanego rozkładu $f(z|x;\theta)$. W tym przypadku niech $g(z|x;\phi)$
+będzie iloczynem funkcji $g_i(z|x;\phi)$, z których każda jest gęstością rozkładu
+$\text{Beta}(\alpha_i, \beta_i)$, gdzie
+\begin{equation*}
+\begin{aligned}[t]
+\begin{bmatrix}
+\alpha_1 \\
+\vdots \\
+\alpha_k
+\end{bmatrix}
+= \rho_\alpha(x;\phi)
+\end{aligned}
+\qquad \qquad
+\begin{aligned}[t]
+\begin{bmatrix}
+\beta_1 \\
+\vdots \\
+\beta_k
+\end{bmatrix}
+= \rho_\beta(x;\phi)
+\end{aligned}
+\end{equation*}
+gdzie $\rho_\alpha,\ \rho_\beta$ są ponownie reprezentowane przez sieci neuronowe
+parametryzowane przez $\phi$. Innymi słowy, $g(z|x;\phi)$ jest rozkładem łącznym
+niezależnych zmiennych o rozkładach Beta z różnymi parametrami.
+
+Przy tych założeniach wszystkie obliczenia wykonywane w sekcji \ref{sec:elbo}
+są dalej poprawne i możemy wykorzystać ELBO (wzór (\ref{eq:elbo})) do
+określenia analogicznego zadania optymalizacyjnego (jak w sekcji \ref{sec:optim_task})
+i zadania funkcji kosztu wzorem (\ref{eq:loss_f}).
+
+\subsubsection{Koszt KL}
+Odległość KL dwóch jednowymiarowych rozkładów Beta o następujących parametrach
+\begin{equation*}
+\begin{split}
+\beta_0 \sim \text{Beta}(\alpha_0, \beta_0) \\
+\beta_1 \sim \text{Beta}(\alpha_1, \beta_1)
+\end{split}
+\end{equation*}
+dla pewnych $\alpha_0,\alpha_1,\beta_0,\beta_1 \in \mathbb{R}_{+}$ wynosi
+\begin{equation} \label{eq:univariate_beta_kl}
+\begin{split}
+KL(\beta_0 || \beta_1) &= \log \left( \frac{\text{B}(\alpha_1,\beta_1)}{\text{B}(\alpha_0,\beta_0)} \right)
++ (\alpha_0-\alpha_1)\psi(\alpha_0) +\\
+&+ (\beta_0-\beta_1)\psi(\beta_0) + (\alpha_1-\alpha_0+\beta_1-\beta_0)\psi(\alpha_0+\beta_0)
+\end{split}
+\end{equation}
+gdzie $\text{B}(x,y)=\frac{\Gamma(x)\Gamma(y)}{\Gamma(x+y)}$ to funkcja beta,
+a $\psi(x)=\frac{\Gamma'(x)}{\Gamma(x)}$ to funkcja digamma.
+Procedury wyliczające obie funkcje (beta i digamma) efektywnie i stabilnie numerycznie
+są szeroko dostępne w bibliotekach (m.in. używanej w tym projekcie bibliotece PyTorch).
+
+Ponadto odległość KL jest addytywna dla zmiennych niezależnych, zatem
+\begin{equation*}
+KL(g(z|x;\phi) || f(z)) = \sum_{i=1}^k
+KL(\text{Beta}(\rho_\alpha(x;\phi)_i,\rho_\beta(x;\phi)_i) || \text{Beta}(0.01,0.01)
+\end{equation*}
+Składniki tej sumy możemy wyliczać na podstawie równania (\ref{eq:univariate_beta_kl}).
+
+\subsubsection{Koszt rekonstrukcji} \label{sec:rec_loss_beta}
+W sekcji \ref{sec:rec_loss_normal} wprowadzamy szacowanie kosztu rekonstrukcji metodą Monte Carlo
+$$
+\mathbb{E}_{z\sim g(z|x;\phi)}\left[\log f(x_i|z;\theta)\right] \sim
+\frac{1}{m} \sum_{i=1}^m -\log f(x|z_i;\theta)
+$$
+gdzie $z_i$ są próbkami z rozkładu $g(z|x;\phi)$. Aby wytrenować enkoder potrzebujemy wyliczyć
+$$
+\nabla_\phi f(x|z_i;\theta)
+$$
+jednak nie możemy tego zrobić wprost, gdy zmienne $z_i$ zależą od parametrów $\phi$ poprzez
+operację próbkowania. Byłoby to możliwe, gdybyśmy przedstawili zmienne $z_i$ jako
+obliczalną i różniczkowalną po parametrach $\phi$ transformację
+zmiennej wylosowanej z pewnego rozkładu standardowego, niezależnego od parametrów
+(zachowując odpowiedni rozkład $z_i$). Podejścia tego użyliśmy już w sekcji \ref{sec:rec_loss_normal}
+reparametryzując $z \sim \mathcal{N}(\mu, \sigma)$ jako $z=\mu + \sigma \epsilon$,
+gdzie $\epsilon \sim \mathcal{N}(0, 1)$.
+
+Podobny trik można zastosować do innych rozkładów z rodziny położenia i skali, niestety
+jednak nie działa on z rozkładami takimi jak Gamma i Beta, którego używamy w tym modelu.
+
+Bardziej ogólnym kandydatem na taką transformację jest $z = F^{-1}(u;\phi)$,
+gdzie $F^{-1}$ to odwrtoność dystrubuanty rozkładu $g(z|x;\phi)$, a $u \sim \mathcal{U}(0, 1)$.
+Dla rozładów Gamma i Beta to podejście również nie jest wystarczające, gdyż
+ich odwrotna dystrubuanta nie daje się przedstawić zwartym wzorem.
+
+Można rozważać dwa rozwiązania powyższego problemu. Pierwsze to przybliżenie
+odwrotności dystrubuanty funkcją obliczalną i różniczkowalną.
+Drugie podejście korzysta z faktu, że
+$$
+u = F(z;\phi)
+$$
+Obie strony równości różniczkujemy po $\phi$ i korzystamy z tego, że $u$ nie zależy od parametrów $phi$.
+Otrzymujemy
+$$
+0 = \frac{dz}{d\phi}g(z|x;\phi)+\frac{\partial F(z;\phi}{g(z|x;\phi)}
+$$
+co daje
+\begin{equation} \label{eq:implicit_gradient}
+\frac{dz}{d\phi} = -\frac{\frac{\partial F(z;\phi}{g(z|x;\phi)}}{g(z|x;\phi)}
+\end{equation}
+Równanie \ref{eq:implicit_gradient} pozwala wyliczać pochodne wylosowanej zmiennej $z$
+po parametrach rozkładu, jeżeli mamy możliwość wyliczania lub przybliżania pochodnych
+dystrubuanty $F$.
+
+Dla rozkładów Gamma i Beta oba rozwiązania wymagają przybliżania funkcji
+jej różniczkowalną wersją. Drugie podejście posiada jednak tę zaletę,
+że nie wpływa na proces losowania zmiennych $z_i$, dzięki czemu możemy do tego użyć
+dokładniejszej procedury i zapewnić odpowiedni rozkład $z_i$. Pierwsze podejście
+tymczasem wprowadza przybliżenie już na etapie wyciągania próbki, co oznacza, że zmienne
+$z_i$ mają rozkład $g(z|x;\phi)$ tylko w przybliżeniu.
+
+% Dodać może szczegóły o przybliżeniu?
+Najprostszym, ale niezbyt dokładnym, sposobem przybliżenia pochodnej dystrubuanty
+rozkładu Gamma lub Beta jest policzenie ilorazów różnicowych.
+Wymaga to jedynie porcedur wyliczających gęstość tych rozkładów,
+które są szeroko dostępne w bibliotekach.
+Autorzy \cite{pathwise_gradients} proponują znacznie dokładniejsze (i bardziej skomplikowane)
+przybliżenie, które również zostało zaimplementowane w bibliotece PyTorch \cite{pytorch}.
+
+\noindent \textit{Uwaga.} W powyższym opisie skupiliśmy się na rozkładach Beta oraz Gamma,
+mimo że w dalszej części wykorzystujemy jedynie rozkład Beta. Rozkład Gamma pojawia się dlatego,
+że gdybyśmy rozwiązali dla niego rozważany problem, to korzystając z faktu, że $Y = \frac{X_1}{X_1+X_2}$
+ma rozkład $\text{Beta}(\alpha,\beta)$, gdy $X_1 \sim \text{Gamma}(\alpha,\theta),\ X_2 \sim \text{Gamma}(\beta,\theta)$,
+otrzymujemy rozwiązanie dla rozkładu Beta (ta transformacja jest różniczkowalna).
+Autorzy \cite{pathwise_gradients} zaznaczają jednak, że ten sposób wprowadza do metody dodatkową wariancję
+i proponują lepsze rozwiązanie. Mimo tego w implementacji użyto powyższego triku.
+
+Mając do dyspozycji wylosowane zmienne $z_i$, dla których możemy propagować gradient
+wstecz, używamy estymatora Monte Carlo i kosztu rekonstrukcji jak w równaniu (\ref{eq:final_rec_loss}).
+
+% \section{Model \textit{M2} Kingmy}
+\section{Autoenkoder wariacyjny z mieszanką gaussowską}
+
+\chapter{Implementacja i architektura modeli}
+Metody opsiane w sekcjach \ref{sec:vae_normal} i \ref{sec:vae_beta} zawierają
+abstrakcyjne obliczenia $\rho$ (nazywane dalej \textbf{enkoderem}) oraz $\mu$
+(nazywane dalej \textbf{dekoderem}) realizowane przez sieci neuronowe.
+W tym rozdziale przedstawiono konkretną architekturę nadaną tym obliczeniom.
+
+\textbf{Enkoder} (dla rozkładu normalnego oraz Beta) wykorzystuje przytoczoną w sekcji
+\ref{sec:related_pointnet} i wprowadzoną w \cite{pointnet} architekturę PointNet do ektrakcji
+1024 sparametryzowanych (wyuczalnych) cech (\textit{features}) z chmur wejściowych.
+Te cechy są dalej traktowane jako wejście do jednej warstwy pełnej o 1024 neuronach wejściowych
+i 256 neuronach wyjściowych. Pomiędzy siecią PointNet a warstwą pełną znajduje się aktywacja ReLU
+i warstwa \textit{batch normalization} \cite{batch_normalization}.
+Ostatnia warstwa reprezentuje parametry rozkładu zmiennej ukrytej --
+po 128 liczb dla $\rho_x,\ \rho_\sigma$ w przypadku rozkładu normalnego lub po 128 liczb
+dla $\rho_\alpha,\ \rho_\beta$ w przypadku rozkładu Beta.
+Oznacza to, że wymiar zmiennej pośredniej wynosi 128 (dla obu rozkładów).
+
+\textbf{Dekoder} posiada znacznie prostszą architekturę -- jest to sieć MLP o 4 ukrytych warstwach
+(kolejno 512, 1024, 1024 i 2048 neuronów) z aktywacjami ReLU (poza warstwą wyjściową).
+Ostatnia warstwa składa się z $3*2048$ neuronów, co odpowiada wymiarowi wejściowych chmur punktów
+i reprezentuje parametry $\mu_x$.
+
+Pomiędzy enkoderem i dekoderem wykonywany jest trik repearametryzacyjny,
+tzn. wylosowanie zmiennej $z$ w sposób, który umożliwia propagowanie gradientu
+funkcji kosztu do parametrów enkodera. Szczegóły triku repearametryzacyjnego zostały opisane
+w sekcjach \ref{sec:rec_loss_normal} i \ref{sec:rec_loss_beta}.
+
+Schemat dokładnej architektury modelu został przedstawiony na rys. \ref{fig:model_arch}.
+\begin{figure}
+    \center{
+        \begin{tikzpicture}[scale=0.8, every node/.style={scale=0.8}]
+            \fill[blue!40!white] (-5.25,4) -- (-5.25,-4) -- (-1.5,-2) -- (-1.5,2) -- cycle;
+            \node[] at (-3.375,0) {PointNet};
+            \draw[->] (-1.4,1.5) -- (-1.1,1.5);
+            \draw[->] (-1.4,0) -- (-1.1,0);
+            \draw[->] (-1.4,-1.5) -- (-1.1,-1.5);
+            \fill[blue!40!white] (-1,2) -- (-1,-2) -- (-0.75,-2) -- (-0.75,2) -- cycle;
+            \node[align=center] at (-0.875,4) (relu) {ReLU\\BatchNorm};
+            \draw[->] (relu) -- (-0.875,2.2);
+            \draw (-0.65,1.5) -- (-0.35,0.25);
+            \draw (-0.65,0) -- (-0.35,0.25);
+            \draw (-0.65,-1.5) -- (-0.35,0.25);
+            \draw (-0.65,1.5) -- (-0.35,-0.25);
+            \draw (-0.65,0) -- (-0.35,-0.25);
+            \draw (-0.65,-1.5) -- (-0.35,-0.25);
+            \fill[blue!40!white] (-0.25,0.5) -- (-0.25,-0.5) -- (0.25,-0.5) -- (0.25,0.5) -- cycle;
+            \node[] at (0,2) (z) {$z$};
+            \draw[->] (z) -- (0,0.7);
+            \draw (0.35,0.25) -- (0.65,0.7);
+            \draw (0.35,-0.25) -- (0.65,0.7);
+            \draw (0.35,0.25) -- (0.65,0);
+            \draw (0.35,-0.25) -- (0.65,0);
+            \draw (0.35,0.25) -- (0.65,-0.7);
+            \draw (0.35,-0.25) -- (0.65,-0.7);
+            \fill[blue!40!white] (0.75,1) -- (0.75,-1) -- (1.25,-1) -- (1.25,1) -- cycle;
+            \draw (1.35,0.7) -- (1.65,1.5);
+            \draw (1.35,0.7) -- (1.65,0);
+            \draw (1.35,0.7) -- (1.65,-1.5);
+            \draw (1.35,0) -- (1.65,1.5);
+            \draw (1.35,0) -- (1.65,0);
+            \draw (1.35,0) -- (1.65,-1.5);
+            \draw (1.35,-0.7) -- (1.65,1.5);
+            \draw (1.35,-0.7) -- (1.65,0);
+            \draw (1.35,-0.7) -- (1.65,-1.5);
+            \fill[blue!40!white] (1.75,2) -- (1.75,-2) -- (2.25,-2) -- (2.25,2) -- cycle;
+            \draw (2.35,1.5) -- (2.65,1.5);
+            \draw (2.35,1.5) -- (2.65,0);
+            \draw (2.35,1.5) -- (2.65,-1.5);
+            \draw (2.35,0) -- (2.65,1.5);
+            \draw (2.35,0) -- (2.65,0);
+            \draw (2.35,0) -- (2.65,-1.5);
+            \draw (2.35,-1.5) -- (2.65,1.5);
+            \draw (2.35,-1.5) -- (2.65,0);
+            \draw (2.35,-1.5) -- (2.65,-1.5);
+            \fill[blue!40!white] (2.75,2) -- (2.75,-2) -- (3.25,-2) -- (3.25,2) -- cycle;
+            \draw (3.35,1.5) -- (3.65,2.5);
+            \draw (3.35,1.5) -- (3.65,0);
+            \draw (3.35,1.5) -- (3.65,-2.5);
+            \draw (3.35,0) -- (3.65,2.5);
+            \draw (3.35,0) -- (3.65,0);
+            \draw (3.35,0) -- (3.65,-2.5);
+            \draw (3.35,-1.5) -- (3.65,2.5);
+            \draw (3.35,-1.5) -- (3.65,0);
+            \draw (3.35,-1.5) -- (3.65,-2.5);
+            \fill[blue!40!white] (3.75,3) -- (3.75,-3) -- (4.25,-3) -- (4.25,3) -- cycle;
+            \draw (4.35,2.5) -- (4.65,3.5);
+            \draw (4.35,2.5) -- (4.65,0);
+            \draw (4.35,2.5) -- (4.65,-3.5);
+            \draw (4.35,0) -- (4.65,3.5);
+            \draw (4.35,0) -- (4.65,0);
+            \draw (4.35,0) -- (4.65,-3.5);
+            \draw (4.35,-2.5) -- (4.65,3.5);
+            \draw (4.35,-2.5) -- (4.65,0);
+            \draw (4.35,-2.5) -- (4.65,-3.5);
+            \fill[blue!40!white] (4.75,4) -- (4.75,-4) -- (5.25,-4) -- (5.25,4) -- cycle;
+            \node[align=center] at (3,4.5) (fc) {FC\\ReLU};
+            \draw[->] (fc) -- (1,1.2);
+            \draw[->] (fc) -- (2,2.2);
+            \draw[->] (fc) -- (3,2.2);
+            \draw[->] (fc) -- (4,3.2);
+            \draw[->] (fc) -- (5,4.1);
+            \node[align=center] at (0,-3) (distrib) {$\mathcal{N}(0,1)$\\$\text{Beta}(0.01,0.01)$};
+            \draw[->] (0, -0.7) -- (distrib);
+            \node[inner sep=0pt] at (-7.1, 0) (input) {\includegraphics[width=.2\textwidth]{images/single_in.png}};
+            \node[inner sep=0pt] at (7.1, 0) (output) {\includegraphics[width=.2\textwidth]{images/single_out.png}};
+            \draw[->] (input) -- (-5.35,0);
+            \draw[->] (5.35,0) -- (output);
+            % \fill[blue!40!white] (2,2) -- (2,-2) -- (6,-3) -- (6,3) -- cycle;
+        \end{tikzpicture}
+    }
+    \caption{\label{fig:model_arch} Architektura modelu VAE.}
+\end{figure}
+% Naturalnym pierwszym rozwiązaniem jest realizowanie
+% tych obliczeń przez zwykłą sieć MLP (z dodatkiem \textit{batch normalization} [\ref{bib:batch_normalization}]).
+% Obliczenia $\rho_x,\ \rho_\sigma$ są realizowane przez jedną sieć MLP, natomiast $\mu_x$ przez drugą (przypomnijmy,
+% że dla uproszczenia przyjęto, że $\mu_\sigma$ jest stałe).
+% Do testów przyjęto, że obie sieci $\rho_1,\ \mu_1$ są 4-warstwowe, w której każda ukryta warstwa składa się z 1024 neuronów.
+%
+% Dalej rozważono również bardziej skomplikowaną sieć $\rho$ opartą na architekturze \textit{Pointnet} [\ref{bib:pointnet}].
+% Dokładniej, sieć $\rho_2$ jest początkowym fragmentem sieci \textit{Pointnet} wyszukującym poszczególne cechy (\textit{features})
+% z doklejoną warstwą wyjściową (warstwa wyjściowa jest w pełni połączona z wyjściem sieci \textit{Pointnet}).
+% Sieć $\mu_2$ pozostaje prostym MLP, dokładnie takim, jak $\mu_1$.
+%
+% W tabeli (\ref{tab:mlp_vs_pointnet}) znajduje się porównanie dwóch zaproponowanych powyżej architektur. Możemy zauważyć,
+% że oba podejścia osiągają podobne wyniki na danych treningowych, jednak prosta sieć MLP znacznie bardziej \textit{overfituje}
+% niż sieć oparta na \textit{Pointnecie}. Z racji tego, że drugi zestaw sieci znacznie lepiej się generalizuje, do dalszej
+% pracy i testów przyjmiemy sieci oprate na \textit{Pointnecie}.
+
+\section{Zbiór danych i trenowanie} \label{sec:training_process}
+Model został wytrenowany na jednej klasie obiektów wybranej z połączonych zbiorów ModelNet40 \cite{modelnet}
+oraz ShapeNet \cite{shapenet} po uprzednim przekształceniu obu zbiorów do
+chmur punktów wymiaru $2048 \times 3$ zgodnie z metodą opisaną w \cite{pc_convert_method}.
+Do treningu zbiór podzielono na części treningowe i testowe w proporcjach 80\%-20\%.
+
+\begin{figure}
+    \center{
+        \includegraphics[width=\textwidth]{images/dataset_samples.png}
+    }
+    \caption{\label{fig:data_samples} Przykładowe chmury punktów ze zbioru danych.
+    Górny wiersz pochodzi ze zbioru ModelNet40, dolny ze zbioru ShapeNet. }
+\end{figure}
+
+Do optymalizacji funckji kosztu danej wzorem (\ref{eq:loss_f}) użyto metody ADAM \cite{adam}. Początkowe
+\textit{learning rate} wynosiło $2 \times 10^{-4}$ i zmniejszało się dwukrotnie, co każde 500 epok.
+Model trenowany był przez 3000 epok (duża liczba epok wynika z niewielkiej ilości próbek).
+
+Na rys \ref{fig:loss_decrease} przedstawiona została zmiana całkowitej funkcji kosztu,
+kosztu rekonstrukcji oraz kosztu KL w czasie przy trenowaniu VAE z rozkładem normalnym.
+Możemy zaobserwować charakterystyczną dla autoenkoderów
+wariacyjnych dynamikę kosztu KL -- podczas gdy koszt rekonstrukcji stale maleje, koszt KL na początku
+szybko wzrasta i powoli spada z biegiem kolejnych epok. Początkowy wzrost kosztu KL odpowiada umieszczaniu
+przez model wielu informacji do zmiennej pośredniej,
+żeby uzyskać drastyczny spadek ogromnego kosztu rekonstrukcji. Jednak gdy koszt rekonstrukcji spada,
+model zaczyna optymalizować informacje przechowywane w zmiennej pośredniej
+tak, żeby jej rozład był podobny do $\mathcal{N}(0, I)$, czemu odpowiada powolny spadek kosztu KL.
+
+\begin{figure}
+    \center{\includegraphics[width=0.8\textwidth]{images/loss_decrease.png}}
+    \caption{\label{fig:loss_decrease} Wykres zmiany funkcji kosztu (\ref{eq:loss_f}) wraz z poszczególnymi częściami
+    na zbiorze treningowym oraz testowym podczas uczenia VAE z rozkładem normalnym.}
+\end{figure}
+
+\chapter{Wyniki eksperymentalne}
+Wyjątkową zaletą autoenkoderów generatywnych jest połączenie wysokich możliwości rekonstrukcyjnych
+zwykłych autoenkoderów z umiejętnością generowanie syntetycznych danych, typową dla modeli
+czysto generatywnych (np. GAN-ów \cite{gan}). Przeprowadzone eksperymenty dzielą się zatem
+na trzy naturalne części: testowanie zdolności rekonstrukcji, możliwości generatywnych
+oraz przedstawieniu korzyści, jakie daje połączenie dwóch modeli w spójną całość.
+
+\section{Zdolność rekonstrukcji}
+Model wytrenowany zgodnie z opisem w sekcji \ref{sec:training_process} posiada świetne zdolności
+rekonstrukcji. Na rys. \ref{fig:simple_reconstructions} znajdują się oryginalne chmury punktów
+ze zbioru danych (kolumny 1. i 3.) wraz z chmurami zrekonstruowanymi przez dekoder
+(kolumny 2. i 4.) na podstawie 128-wymiarowej zmiennej pośredniej wyliczonej przez enkoder.
+
+\begin{figure}
+    \center{
+        \includegraphics[width=\textwidth]{images/simple_reconstructions.png}
+    }
+    \caption{\label{fig:simple_reconstructions} Oryginalne chmury i otrzymane rekonstrukcje.
+    Kolumny 2. i 4. zawierają rekonstrukcje chmur ze zbioru danych widocznych po lewej stronie
+    (odpowiednio w kolumnach 1. i 3.). Chmury z dwóch górnych wierszy pochodzą ze zbioru
+    ModelNet40, z dwóch dolnych ze zbioru ShapeNet. Rekonstrukcje zostały wykonane przez jeden
+    model wytrenowany na połączonym zbiorze danych.}
+\end{figure}
+
+Jedną z miar jakości rekonstrukcji autoenkoderów jest pokrycie (\textit{coverage}). Pokrycie definiujemy jako procent
+próbek ze zbioru danych, dla którego najbliższa (w tym przypadku w sensie \textit{Chamfer Distance}) inna próbka
+spośród całego zbioru dancyh oraz wszystkich rekonstrukcji pochodzi ze zbioru rekonstrukcji.
+Dla wytrenowanego modelu pokrycie na rozważanym podzbiorze \textit{Modelnetu40} wynosi $...\%$.
+
+\section{Możliwości generatywne}
+Cechą, która wyróżnia VAE na tle innych autoenkoderów, są jego zdolności generatywne, tzn.
+możliwość tworzenia syntetycznych, nieobecnych w zbiorze danych próbek, które jednocześnie wyglądają
+realistycznie.
+
+Na rozważany model nałożono wymaganie, aby zrandomizowane zmienne pośrednie posiadały rozkład
+bliski do standardowego wielowymiarowego normalnego (o średniej w 0 i identycznościowej macierzy
+kowariancji). Dzięki temu możemy tworzyć syntetyczne próbki danych poprzez wylosowanie zmiennej
+pośredniego z docelowego rozkładu (standardowego normalnego) i przekazanie wyniku do dekodera.
+Rys. \ref{fig:random_generated} przedstawia chmury powstałe w opisany powyżej sposób.
+Możemy zauważyć, że powstałe próbki dobrze pasują do reszty zbioru danych i prezentują
+dużą różnorodność, co świadczy o rozwiniętych możliwościach generatywnych modelu.
+
+\begin{figure}
+    \center{\includegraphics[width=\textwidth]{images/random_generated.png}}
+    \caption{\label{fig:random_generated} Syntetyczne chmury punktów wygenerowane
+    przez model na podstawie wylosowanych zmiennych pośrednich. }
+\end{figure}
+
+\section{Eksperymenty charakterystyczne dla VAE}
+Zintegrowanie modelu generatywnego z enkoderem pozwala osiągnąć rezultaty niedostępne dla modeli trenowanych
+oddzielnie. Jednym z zadań, które pozwala rozwiązać zintegrowany model jest naturalna i \textit{sensowna}
+interpolacja pomiędzy dwoma obiektami ze zbioru danych. Zadanie polega na tym, aby wytworzyć obiekty
+reprezentujące stopniowe przekształcenie jednej próbki ze zbioru danych w drugą. Żądamy przy tym, aby
+obiekty przejściowe wyglądały naturalnie, podobnie do próbek ze zbioru danych.
+Rys. \ref{fig:interpolation} przedstawia interpolacje wykonane przez uzyskany model.
+Można zaobserwować, że kolejne kroki interpolacji coraz bardziej upodobniają obiekt
+źródłowy do docelowego, jednocześnie zachowując typowe cechy obiektów z oryginalnego zbioru danych.
+
+\begin{figure}
+    \center{
+        \begin{tikzpicture}
+            \node[inner sep=0pt] at (0,0) {\includegraphics[width=\textwidth]{images/arithmetic.png}};
+            \node[inner sep=0pt] at (0,1.7) {\LARGE$+$};
+            \node[inner sep=0pt] at (0,-1.7) {\LARGE$+$};
+            \node[inner sep=0pt] at (-3.5,1.7) {\LARGE$-$};
+            \node[inner sep=0pt] at (-3.5,-1.7) {\LARGE$-$};
+            \node[inner sep=0pt] at (3.5,1.7) {\LARGE$=$};
+            \node[inner sep=0pt] at (3.5,-1.7) {\LARGE$=$};
+        \end{tikzpicture}
+    }
+    \caption{\label{fig:arithmetic} Wyniki wykonywania prostych operacji arytmetycznych na zmiennych pośrednich.
+    Do chmur z 3. kolumny została dodana różnica chmur z 1. i 2. kolumny i po zdekodowaniu otrzymano chmury z 4. kolumny.
+    W pierwszym wierszu warto zwrócić uwagę, że w różnicy zmiennych pośrednich została zapamiętana
+    informacja o podłokietnikach, a w drugim wierszu kształt nóg. }
+\end{figure}
+
+\begin{figure}
+    \center{
+        \begin{tikzpicture}
+            \node[inner sep=0pt] at (0,0) {\includegraphics[width=\textwidth]{images/interpolation.png}};
+            \draw[->,semithick] (-0.25,1.8) -- (0.25,1.8);
+            \draw[->,semithick] (-0.25,-1.8) -- (0.25,-1.8);
+            \draw[->,semithick] (-0.25,5.4) -- (0.25,5.4);
+            \draw[->,semithick] (-0.25,-5.4) -- (0.25,-5.4);
+            \draw[->,semithick] (3.25,1.8) -- (3.75,1.8);
+            \draw[->,semithick] (3.25,-1.8) -- (3.75,-1.8);
+            \draw[->,semithick] (3.25,5.4) -- (3.75,5.4);
+            \draw[->,semithick] (3.25,-5.4) -- (3.75,-5.4);
+            \draw[->,semithick] (-3.75,1.8) -- (-3.25,1.8);
+            \draw[->,semithick] (-3.75,-1.8) -- (-3.25,-1.8);
+            \draw[->,semithick] (-3.75,5.4) -- (-3.25,5.4);
+            \draw[->,semithick] (-3.75,-5.4) -- (-3.25,-5.4);
+            \draw[->,semithick,rounded corners,opacity=0.6] (5.25,3.9) -- (5.25,3.6) -- (-5.25,3.6) -- (-5.25,3.3);
+            \draw[->,semithick,rounded corners,opacity=0.6] (5.25,-3.3) -- (5.25,-3.6) -- (-5.25,-3.6) -- (-5.25,-3.9);
+        \end{tikzpicture}
+    }
+    \caption{\label{fig:interpolation} Naturalne interpolacje pomiędzy obiektami ze zbioru danych.
+    Przedstawione zostały dwa procesy interpolacji -- każdy zajmuje dwa wiersze.
+    Chmury oglądane wierszami od lewej do prawej reprezentują kolejne stopnie interpolacji.
+    Pierwsze chmury w 1. i 3. wierszu oraz ostatnie w 2. i 4. to obiekty docelowe (ze zbioru danych),
+    pozostałe są syntetyczne, wygenerowane przez model.
+    W pierwszej interpolacji warto zwrócić uwagę na początkowe wypełnianie siedzenia i oparcia,
+    dalej połączenie nóg i wytworzenie podłokietników i na koniec wypełnienie podłokietników.
+    W drugiej możemy zobaczyć stopniowe dzielenie się części jednolitej bryły początkowej
+    na siedzenie, oparci i nogi, które dalej zyskują odpowiedni kształt i liczne szczegóły. }
+\end{figure}
+
+Naturalnie chcielibyśmy, aby reprezentacja danych znaleziona przez enkoder była w jak największym
+stopniu interpretowalna, tzn. żeby poszczególne wymiary przestrzeni reprezentacji odpowiadały
+określonym cechom obiektu. Okazuje się, że znaleziona przez model VAE reprezentacja jest
+do pewnego stopnia interpretowalna -- w zmiennej pośredniej są przechowywane naturalne cechy
+obiektów (w przypadku krzeseł jest to np. rodzaj nóg lub podłokietników) i odpowiednio modyfikując
+zmienną pośrednią możemy kontrolować te cechy w obiekcie.
+
+Możemy się o tym przekonać wykonując prostą arytmetykę na zmiennych pośrednich.
+Załóżmy, że dysponujemy trzema obiektami ze zbioru danych -- dwoma podobnymi,
+różniącymi się obecnością jednej cechy (np. podłokietników, lub kręconych nóg) i trzecim
+różnym od poprzednich, który również nie posiada wybranej cechy.
+Liczymy, że w różnicy zmiennych pośrednich podobnych obiektów zostanie zakodowana obecność
+różniącej ich cechy. Aby dodać tą cechę do trzeciego obiektu możemy zatem do jego zmiennej pośredniej
+dodać otrzymaną różnicę i zdekodować wynik. Rezultaty tego eksperymentu
+przedstawia rys. \ref{fig:arithmetic}.
+
+% Jedną z największych zalet VAE są jego zdolności generatywne. Klasycznym sposobem demonstracji zdolności generatywnych
+% modelu jest skonstruowanie takiej interpolacji pomiędzy dwoma różnymi obiektami, że każdy z jej kroków pośrednich
+% jest \textit{podobny} (wizualnie lub z użyciem metryki) do próbek z oryginalnego zbioru danych. Rys \ref{fig:interpolation}
+% przedstawiają interpolacje wykonane przez rozważany powyżej model.
+
+\begin{figure}
+    \center{
+        \begin{tikzpicture}
+            \node[inner sep=0pt] (tsne) at (0,0)
+                {\includegraphics[width=.55\textwidth]{images/vae_means_tsne.png}};
+            \node[inner sep=0pt] (left_1) at (-4.8, 1.5)
+                {\includegraphics[width=.22\textwidth]{images/left_1.png}};
+            \node[inner sep=0pt] (left_2) at (-4.8, -1.5)
+                {\includegraphics[width=.22\textwidth]{images/left_2.png}};
+            \node[inner sep=0pt] (right_1) at (5.2, 1.5)
+                {\includegraphics[width=.22\textwidth]{images/right_1.png}};
+            \node[inner sep=0pt] (right_2) at (5.2, -1.5)
+                {\includegraphics[width=.22\textwidth]{images/right_2.png}};
+            \draw[->,line width=0.4mm] (left_1) -- (-1,-0.9);
+            \draw[->,line width=0.4mm] (left_2) -- (-1,-1.1);
+            \draw[->,line width=0.4mm] (right_1) -- (2.4,-0.9);
+            \draw[->,line width=0.4mm] (right_2) -- (2.4,-1.1);
+        \end{tikzpicture}
+    }
+    \caption{\label{fig:vae_means_tsne} Wykres średnich zwracanych przez enkoder modelu VAE
+    po zredukowaniu do dwóch wymiarów metodą t-SNE. Warto zwrócić uwagę na duże zagęszczenie
+    średnich i brak wyraźnie odseparowanych klastrów. Mimo, że osobnych klastrów nie
+    widać na wykresie, to z położonych blisko zmiennych pośrednich model dekoduje
+    bliskie znaczeniowo obiekty, co potwierdzają wybrane przykłady.
+    Sugeruje to możliwość wprowadzenie klasteryzacji do modelu generatywnego.}
+% \end{figure}
+    \vspace*{\floatsep}
+% \begin{figure}[h]
+    \center{
+        \begin{tikzpicture}
+            \node[inner sep=0pt] (tsne) at (0,0)
+                {\includegraphics[width=.55\textwidth]{images/vae_means_tsne.png}};
+            \node[inner sep=0pt] (left_1) at (-4.5, 1.5)
+                {\includegraphics[width=.2\textwidth]{images/left_1.png}};
+            \node[inner sep=0pt] (left_2) at (-4.5, -1.5)
+                {\includegraphics[width=.2\textwidth]{images/left_2.png}};
+            \node[inner sep=0pt] (right_1) at (4.9, 1.5)
+                {\includegraphics[width=.2\textwidth]{images/right_1.png}};
+            \node[inner sep=0pt] (right_2) at (4.9, -1.5)
+                {\includegraphics[width=.2\textwidth]{images/right_2.png}};
+            \draw[->,line width=0.4mm] (left_1) -- (-1,-0.9);
+            \draw[->,line width=0.4mm] (left_2) -- (-1,-1.1);
+            \draw[->,line width=0.4mm] (right_1) -- (2.4,-0.9);
+            \draw[->,line width=0.4mm] (right_2) -- (2.4,-1.1);
+        \end{tikzpicture}
+    }
+    \caption{\label{fig:ae_means_tsne} Wykres średnich zwracanych przez enkoder modelu AE
+    po zredukowaniu do dwóch wymiarów metodą t-SNE. Możemy zaobserwować wyraźnie
+    odseparowane klastry z dużymi przestrzeniami pomiędzy nimi. Może to ułatwiać klasteryzację
+    danych, kosztem możliwośi generatywnych modelu, np. interpolacji, czy generowania
+    danych syntetycznych.}
+\end{figure}
+
+Rys. \ref{fig:vae_means_tsne} i \ref{fig:ae_means_tsne} przedstawiają wykresy średnich rozkładów
+zwróconych przez endkodery modeli VAE (rys. \ref{fig:vae_means_tsne}) i AE (\ref{fig:ae_means_tsne})
+dla wszystkich próbek ze zbioru danych po zredukowaniu do dwóch wymiarów metodą t-SNE.
+Możemy zaobserwować znacznie większe zagęszczenie średnich i mniejsze przestrzenie pomiędzy
+poszczególnymi klastrami (które dla VAE nie są nawet wyraźne). Duże zagęszczenie średnich
+w modelu VAE jest efektem regularyzowania modelu kosztem KL i umożliwia wykonywanie
+zadań takich jak tworzenie syntetycznych danych, sensowna interpolacja,
+czy arytmetyka na zmiennych pośrednich.
+Duże przestrzenie pomiędzy klastrami w modelu AE powodują z kolei, że interpolacja
+dwóch obiektów pochodzących z różnych klastrów staje się niemożliwa lub nienaturalna,
+podobnie tworzenie danych syntetycznych na podstawie wylosowanej zmiennej pośredniej.
+
+\section{Binaryzacja reprezentacji}
+Aby uzyskać binarną reprezentację chmur punktów trenujemy autoenkoder wariacyjny
+z zakładanym rozkładem $\text{Beta}(0.01, 0.01)$ zmiennej ukrytej,
+zgodnie z opsiem w sekjci \ref{sec:vae_beta}.
+
+Rys. \ref{fig:binary_hist} przedstawia histogram wartości wylosowanych
+z rozkładów zwróconych prez endkoder dla danych ze zbioru treningowego
+(po jednej próbce na obiekt, zagregowane do jednego wymiaru). Możemy zaobserwować,
+że prawie wszystkie wartości znajdują się bardzo blisko brzegów nośnika, t.j. 0 i 1,
+co pozwala przypuszczać, że wzrost kosztu rekonstrukcji po zaokrągleniu nie wzrośnie znacząco.
+
+\begin{figure}
+    \center{\includegraphics[width=0.7\textwidth]{images/binary_hist.png}}
+    \caption{\label{fig:binary_hist} Histogram wartości zmiennej ukrytej dla danych ze zbioru
+    treningowego przy regulrazyacji rozkładem $\text{Beta}(0.01, 0.01)$.}
+\end{figure}
+
+Tabela \ref{fig:increase_after_bin} przedstawia faktyczny koszt rekonstrukcji
+przed i po zbinaryzowaniu na zbiorach treningowym i testowym. Możemy zauważyć, że wzrost kosztu
+jest pomijalny i model posiada dobre zdolności rekonstrukcji obiektów na podstawie zaledwie 128 bitów
+(niecałe 25\% gorsze od modelu z reprezentacją ciągłą i rozkładem normalnym przy
+32-krotnym skompresowaniu zmiennej ukrytej).
+Rys. \ref{fig:binary_reconstrucions} przedstawia chmury oryginalne i ich odpowiedniki
+odtworzone przez dekoder na podstawie 128 bitów wygenerowanych przez enkoder.
+
+\begin{figure}
+    \center{
+        \bgroup
+        \def\arraystretch{1.7}
+        \begin{tabular}{ r | l | l }
+            & train & test \\
+            \hline
+            VAE-$\mathcal{N}$ & 0.785 & 1.15 \\
+            VAE-$\beta$       & 1.024 & 1.464 \\
+            VAE-bin           & 1.027 & 1.464 \\
+        \end{tabular}
+        \egroup
+    }
+    \caption{\label{fig:increase_after_bin} Średnia odległość \textit{Chamfer distance} pomiędzy
+    oryginalnymi chmuarmi a ich rekonstrukcjami zwróconymi przed odpowiednie modele na zbiorach
+    treningowym i testowym.}
+\end{figure}
+
+\begin{figure}
+    \center{\includegraphics[width=\textwidth]{images/binary_reconstructions.png}}
+    \caption{\label{fig:binary_reconstrucions} Oryginalne chmury i odpowiadające im
+    rekonstrukcje odtworzone na podstawie 128 bitów wygenerowanych przez enkoder.
+    Kolumny 1. i 3. zawierają oryginalne chmury, a odpowiednio 2. i 4. ich rekonstrukcje.}
+\end{figure}
+
+Mimo przejścia do dyskretnej przestrzeni zmiennych ukrytych, model pozostał generatywny.
+Oznacz to, że możemy tworzyć dane syntetyczne na podstawie 128 wylosowanych bitów
+oraz przeprowadzać interpolacje między obiektami i wykonywać sensowną arytmetyka na zmiennych ukrytych.
+Rys. \ref{fig:binary_interpolation} oraz \ref{fig:binary_arithmetic} prezentują niektóre
+z tych możliwości.
+
+\begin{figure}
+    \center{\includegraphics[width=\textwidth]{images/binary_interpolation.png}}
+    \caption{\label{fig:binary_interpolation} Dwa procesy interpolacji pomiędzy dwoma obiektami
+    ze zbioru treningowego wykonane na reprezentacjach binarnych. Pośrednie zmienne ukryte
+    zostały utworzone przez negowanie stopniowo wzrastającej liczby bitów różniących
+    zmienne ukryte obiektów krańcowych zgodnie z pewną ustaloną, losową permutacją.}
+\end{figure}
+
+\begin{figure}
+    \center{
+        \begin{tikzpicture}
+            \node[inner sep=0pt] at (0,0) {\includegraphics[width=\textwidth]{images/binary_arithmetic.png}};
+            \node[inner sep=0pt] at (0,1.7) {\LARGE$+$};
+            \node[inner sep=0pt] at (0,-1.7) {\LARGE$+$};
+            \node[inner sep=0pt] at (-3.5,1.7) {\LARGE$-$};
+            \node[inner sep=0pt] at (-3.5,-1.7) {\LARGE$-$};
+            \node[inner sep=0pt] at (3.5,1.7) {\LARGE$=$};
+            \node[inner sep=0pt] at (3.5,-1.7) {\LARGE$=$};
+        \end{tikzpicture}
+    }
+    \caption{\label{fig:binary_arithmetic} Wyniki wykonywania operacji arytmetycnzych
+    na zmiennych ukrytych podobnie jak na rys. \ref{fig:arithmetic}, ale dla
+    reprezentacji zbinaryzowanej. Wyliczona zmienna ukryta została dodatkowo
+    obicięta do przeziału $[0,1]$.}
+\end{figure}
+
+\chapter{Wnioski}
+
+\clearpage
+
+\bibliographystyle{ieeetr}
+\bibliography{report}
+
+\end{document}

@@ -11,5 +11,5 @@ __pycache__/
 
 # Report stuff
 *.npy
-report/
+report/*
 !report/report.tex
