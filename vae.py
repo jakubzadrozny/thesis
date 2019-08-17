@@ -33,10 +33,9 @@ def beta_kl(alpha, beta, lbd=0.0):
                            torch.full_like(alpha, ALPHA_PRIOR), torch.full_like(beta, BETA_PRIOR), lbd=lbd)
 
 def normal_sample(z_mean, z_log_sigma2):
-    return distrib.normal.Normal(z_mean, torch.exp(0.5*z_log_sigma2)).rsample()
-    # z_sigma = torch.exp(0.5 * z_log_sigma2)
-    # epsilon = torch.randn_like(z_mean)
-    # return epsilon*z_sigma + z_mean
+    z_sigma = torch.exp(0.5 * z_log_sigma2)
+    epsilon = torch.randn_like(z_mean)
+    return epsilon*z_sigma + z_mean
 
 def beta_sample(alpha, beta, eps=1e-6):
     # return distrib.beta.Beta(torch.exp(alpha), torch.exp(beta)).rsample()
@@ -59,18 +58,36 @@ class VAE(SaveableModule):
         x = self.postprocess(x)
         return torch.chunk(x, 2, dim=1)
 
+    def encode_sample(self, x):
+        alpha, beta = self.encode(x)
+        return self.sample(alpha, beta)
+
+    def encode_sample_b(self, x):
+        z = self.encode_sample(x)
+        return (z > 0.5).float()
+
     def decode(self, alpha, beta):
         z = self.sample(alpha, beta)
         rec = self.decoder(z)
-        return rec
+        return rec, z
 
     def decode_at_mean(self, z_mean):
         return self.decoder(z_mean)
 
     def forward(self, x):
-        z_mean, _ = self.encode(x)
-        rec = self.decode_at_mean(z_mean).view(x.shape)
-        return rec, z_mean
+        alpha, beta = self.encode(x)
+        rec, z = self.decode(alpha, beta)
+        return rec.view(x.shape), z
+
+    def decode_binarized(self, alpha, beta):
+        z = (self.sample(alpha, beta) > 0.5).float()
+        rec = self.decoder(z)
+        return rec, z
+
+    def forward_binarized(self, x):
+        alpha, beta = self.encode(x)
+        rec, z = self.decode_binarized(alpha, beta)
+        return rec.view(x.shape), z
 
     def elbo_loss(self, x, M=1, lbd=0.0):
         alpha, beta = self.encode(x)
@@ -78,7 +95,8 @@ class VAE(SaveableModule):
 
         rec_loss = 0
         for i in range(M):
-            rec = self.decode(alpha, beta).view(x.shape)
+            rec, _ = self.decode(alpha, beta)
+            rec = rec.view(x.shape)
             rec_loss += self.rec_loss(x, rec)
         rec_loss /= M
 
