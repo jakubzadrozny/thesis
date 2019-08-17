@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 
 from datasets import JointDataset
 from transforms import SetRotation
-from vae import PCVAE
+from vae import NPCVAE, BPCVAE
 from eval import loss_on_loader
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')

@@ -13,7 +13,7 @@ def loss_on_loader(model, loader, M=1, device=device):
         for x, _ in loader:
             batches += 1
             x = x.to(device)
-            loss, stats = model.elbo_loss(x, M=M, lbd=0.0)
+            loss, stats = model.elbo_loss(x, M=M)
 
             total += loss
             for key in stats:
