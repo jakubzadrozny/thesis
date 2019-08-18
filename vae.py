@@ -85,7 +85,7 @@ class BPCVAE(VAE):
             z = (z > 0.5).float()
         return z, alpha, beta
 
-    def sample(alpha, beta, eps=1e-6):
+    def sample(self, alpha, beta, eps=1e-6):
         # return distrib.beta.Beta(torch.exp(alpha), torch.exp(beta)).rsample()
         x = distrib.gamma.Gamma(alpha, torch.ones_like(alpha)).rsample()
         y = distrib.gamma.Gamma(beta, torch.ones_like(beta)).rsample()
