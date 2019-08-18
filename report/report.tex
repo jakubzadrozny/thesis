@@ -557,17 +557,9 @@ oraz ShapeNet \cite{shapenet} po uprzednim przekształceniu obu zbiorów do
 chmur punktów wymiaru $2048 \times 3$ zgodnie z metodą opisaną w \cite{pc_convert_method}.
 Do treningu zbiór podzielono na części treningowe i testowe w proporcjach 80\%-20\%.
 
-\begin{figure}
-    \center{
-        \includegraphics[width=\textwidth]{images/dataset_samples.png}
-    }
-    \caption{\label{fig:data_samples} Przykładowe chmury punktów ze zbioru danych.
-    Górny wiersz pochodzi ze zbioru ModelNet40, dolny ze zbioru ShapeNet. }
-\end{figure}
-
 Do optymalizacji funckji kosztu danej wzorem (\ref{eq:loss_f}) użyto metody ADAM \cite{adam}. Początkowe
 \textit{learning rate} wynosiło $2 \times 10^{-4}$ i zmniejszało się dwukrotnie, co każde 500 epok.
-Model trenowany był przez 3000 epok (duża liczba epok wynika z niewielkiej ilości próbek).
+Model trenowany był przez 2500 epok (duża liczba epok wynika z niewielkiej ilości próbek).
 
 Na rys \ref{fig:loss_decrease} przedstawiona została zmiana całkowitej funkcji kosztu,
 kosztu rekonstrukcji oraz kosztu KL w czasie przy trenowaniu VAE z rozkładem normalnym.
@@ -580,9 +572,23 @@ model zaczyna optymalizować informacje przechowywane w zmiennej pośredniej
 tak, żeby jej rozład był podobny do $\mathcal{N}(0, I)$, czemu odpowiada powolny spadek kosztu KL.
 
 \begin{figure}
-    \center{\includegraphics[width=0.8\textwidth]{images/loss_decrease.png}}
-    \caption{\label{fig:loss_decrease} Wykres zmiany funkcji kosztu (\ref{eq:loss_f}) wraz z poszczególnymi częściami
-    na zbiorze treningowym oraz testowym podczas uczenia VAE z rozkładem normalnym.}
+    \center{\includegraphics[width=\textwidth]{images/total_loss_decrease.png}}
+
+    \vspace*{\floatsep }
+
+    \center{\includegraphics[width=\textwidth]{images/kl_loss_decrease.png}}
+    \caption{\label{fig:loss_decrease} Wykresy zmiany funkcji kosztu (równanie (\ref{eq:loss_f}))
+    wraz z poszczególnymi częściami na zbiorze treningowym oraz testowym podczas
+    uczenia VAE z rozkładem normalnym. Kosztl KL jest jednakowy na zbiorze treningowym i testowym.}
+\end{figure}
+
+
+\begin{figure}[t]
+    \center{
+        \includegraphics[width=\textwidth]{images/dataset_samples.png}
+    }
+    \caption{\label{fig:data_samples} Przykładowe chmury punktów ze zbioru danych.
+    Górny wiersz pochodzi ze zbioru ModelNet40, dolny ze zbioru ShapeNet. }
 \end{figure}
 
 \chapter{Wyniki eksperymentalne}
@@ -593,26 +599,50 @@ na trzy naturalne części: testowanie zdolności rekonstrukcji, możliwości ge
 oraz przedstawieniu korzyści, jakie daje połączenie dwóch modeli w spójną całość.
 
 \section{Zdolność rekonstrukcji}
-Model wytrenowany zgodnie z opisem w sekcji \ref{sec:training_process} posiada świetne zdolności
-rekonstrukcji. Na rys. \ref{fig:simple_reconstructions} znajdują się oryginalne chmury punktów
-ze zbioru danych (kolumny 1. i 3.) wraz z chmurami zrekonstruowanymi przez dekoder
-(kolumny 2. i 4.) na podstawie 128-wymiarowej zmiennej pośredniej wyliczonej przez enkoder.
+Model wytrenowany zgodnie z opisem w sekcji \ref{sec:training_process} posiada dobre zdolności
+rekonstrukcji. Na rys. \ref{fig:reconstructions}
+znajdują się oryginalne chmury punktów ze zbioru danych (treningowego i testowego)
+wraz z chmurami zrekonstruowanymi przez dekoder na podstawie 128-wymiarowej zmiennej ukrytej wyliczonej przez enkoder.
+Przedstawione rekonstrukcje ukazują przekrój możliwości modelu, tzn. przykłady poniżej i powyżej średniej jakości,
+która mierzona \textit{Chamfer distance} wynosi 0.85 na zbiorze treningowym i 1.28 na zbiorze testowym.
+Rekonstrukcje zostały wykonane przez jeden model wytrenowany na połączonym zbiorze danych (ModelNet40 oraz ShapeNet).
+Możemy zaobserwować, że model gorzej radzi sobie z częścią testową zbioru ModelNet40, niż zbioru ShapeNet.
+Jest to spowodowane tym, że ShapeNet jest prawie czterokrotnie większy od Modelnetu40, dzięki czemu model lepiej
+się na nim generalizuje.
 
 \begin{figure}
     \center{
-        \includegraphics[width=\textwidth]{images/simple_reconstructions.png}
+        \begin{tikzpicture}
+            \node[inner sep=0pt] at (0,5) {\includegraphics[width=.95\textwidth]{images/train_reconstructions.png}};
+            \node[inner sep=0pt] at (0,-5) {\includegraphics[width=.95\textwidth]{images/test_reconstructions.png}};
+            \draw[->,semithick] (3.1,-5) -- node [midway,above=0.5em] {\scriptsize$0.96$} (3.6, -5);
+            \draw[->,semithick] (3.1,-8.33) -- node [midway,above=0.5em] {\scriptsize$1.01$} (3.6, -8.33);
+            \draw[->,semithick] (3.1,-1.77) -- node [midway,above=0.5em] {\scriptsize$0.67$} (3.6,-1.77);
+            \draw[->,semithick] (3.1,1.77) -- node [midway,above=0.5em] {\scriptsize$1.17$} (3.6,1.77);
+            \draw[->,semithick] (3.1,5) -- node [midway,above=0.5em] {\scriptsize$0.99$} (3.6,5);
+            \draw[->,semithick] (3.1,8.33) -- node [midway,above=0.5em] {\scriptsize$0.55$} (3.6,8.33);
+
+            \draw[dashed,opacity=0.6] (-5.7,0) -- (5.7,0);
+
+            \draw[->,semithick] (-3.6,-5) -- node [midway,above=0.5em] {\scriptsize$2.63$} (-3.1, -5);
+            \draw[->,semithick] (-3.6,-8.33) -- node [midway,above=0.5em] {\scriptsize$4.08$} (-3.1, -8.33);
+            \draw[->,semithick] (-3.6,-1.77) -- node [midway,above=0.5em] {\scriptsize$1.6$} (-3.1,-1.77);
+            \draw[->,semithick] (-3.6,1.77) -- node [midway,above=0.5em] {\scriptsize$1.09$} (-3.1,1.77);
+            \draw[->,semithick] (-3.6,5) -- node [midway,above=0.5em] {\scriptsize$0.94$} (-3.1,5);
+            \draw[->,semithick] (-3.6,8.33) -- node [midway,above=0.5em] {\scriptsize$0.26$} (-3.1,8.33);
+        \end{tikzpicture}
     }
-    \caption{\label{fig:simple_reconstructions} Oryginalne chmury i otrzymane rekonstrukcje.
-    Kolumny 2. i 4. zawierają rekonstrukcje chmur ze zbioru danych widocznych po lewej stronie
-    (odpowiednio w kolumnach 1. i 3.). Chmury z dwóch górnych wierszy pochodzą ze zbioru
-    ModelNet40, z dwóch dolnych ze zbioru ShapeNet. Rekonstrukcje zostały wykonane przez jeden
-    model wytrenowany na połączonym zbiorze danych.}
+    \caption{\label{fig:reconstructions} Oryginalne chmury i otrzymane rekonstrukcje dla zbiorów
+    treningowego (na górze) i testowego (na dole).
+    Chmury z lewej strony pochodzą ze zbioru ModelNet40, z prawej ze zbioru ShapeNet.
+    Nad strzałkami podano odległośc $CD$ rekonstrukcji.
+    Średnie $CD$ wynosi 0.85 na zbiorze treningowym i 1.1 na testowym.}
 \end{figure}
 
-Jedną z miar jakości rekonstrukcji autoenkoderów jest pokrycie (\textit{coverage}). Pokrycie definiujemy jako procent
-próbek ze zbioru danych, dla którego najbliższa (w tym przypadku w sensie \textit{Chamfer Distance}) inna próbka
-spośród całego zbioru dancyh oraz wszystkich rekonstrukcji pochodzi ze zbioru rekonstrukcji.
-Dla wytrenowanego modelu pokrycie na rozważanym podzbiorze \textit{Modelnetu40} wynosi $...\%$.
+% Jedną z miar jakości rekonstrukcji autoenkoderów jest pokrycie (\textit{coverage}). Pokrycie definiujemy jako procent
+% próbek ze zbioru danych, dla którego najbliższa (w tym przypadku w sensie \textit{Chamfer Distance}) inna próbka
+% spośród całego zbioru dancyh oraz wszystkich rekonstrukcji pochodzi ze zbioru rekonstrukcji.
+% Dla wytrenowanego modelu pokrycie na rozważanym podzbiorze \textit{Modelnetu40} wynosi $...\%$.
 
 \section{Możliwości generatywne}
 Cechą, która wyróżnia VAE na tle innych autoenkoderów, są jego zdolności generatywne, tzn.
@@ -810,7 +840,7 @@ odtworzone przez dekoder na podstawie 128 bitów wygenerowanych przez enkoder.
         \begin{tabular}{ r | l | l }
             & train & test \\
             \hline
-            VAE-$\mathcal{N}$ & 0.785 & 1.15 \\
+            VAE-$\mathcal{N}$ & 0.851 & 1.287 \\
             VAE-$\beta$       & 1.024 & 1.464 \\
             VAE-bin           & 1.027 & 1.464 \\
         \end{tabular}
