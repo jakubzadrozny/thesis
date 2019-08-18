@@ -65,7 +65,7 @@ class ExpPointnetEncoder(nn.Module):
 
     def forward(self, x):
         x = self.encoder(x)
-        return torch.clamp(torch.exp(x), min=eps, max=1.0/eps)
+        return torch.clamp(torch.exp(x), min=self.eps, max=1.0/self.eps)
 
 
 class PointnetSoftmaxEncoder(SimplePointnetEncoder):
