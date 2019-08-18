@@ -59,6 +59,7 @@ class SimplePointnetEncoder(nn.Module):
 
 class ExpPointnetEncoder(nn.Module):
     def __init__(self, *dims, eps=1e-6):
+        super().__init__()
         self.encoder = SimplePointnetEncoder(*dims)
         self.eps = eps
 
