@@ -8,6 +8,27 @@ from modelutils import (SimplePointnetEncoder, ExpPointnetEncoder, SaveableModul
                         prep_seq, cd, logbeta)
 
 
+class AE(SaveableModule):
+    DEFAULT_SAVED_NAME = 'ae'
+
+    def __init__(self, latent=128, decoder=[512, 1024, 1024, 2048], encoder=[]):
+        super().__init__()
+        self.decoder = prep_seq(latent, *decoder, PC_OUT_DIM)
+        self.encoder = SimplePointnetEncoder(*encoder, 2*latent)
+
+    def rec_loss(self, x, rec):
+        return torch.mean(cd(rec, x))
+
+    def forward(self, x):
+        z = self.encoder(x)
+        return self.decoder(z).view(x.shape), z
+
+    def elbo_loss(self, x):
+        z = self.encoder(x)
+        rec = self.decoder(x)
+        return self.rec_loss(x, rec)
+
+
 class VAE(SaveableModule):
 
     def __init__(self):

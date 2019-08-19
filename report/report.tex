@@ -12,8 +12,24 @@
 
 \polishtitle    {Kompaktowe reprezentacje binarne i modele generatywne}
 \englishtitle   {Compact binary representations and generative models}
-\polishabstract {\ldots}
-\englishabstract{\ldots}
+\polishabstract {Niniejsza praca przedstawia możliwości zastosowania autoenkodera wariacyjnego
+                (VAE) do znalezienia reprezentacji (w tym kompatkowej reprezentacji binarnej) dla chmur punktów 3D.
+                W pracy opisano teoretyczne podstawy uczenia autoenkoderów wariacyjnych z regularyzacją
+                zmiennej ukrytej rozkładem normalnym. Podano również przegląd metod wykorzystywanych do
+                wymuszenia bardziej skomplikowanych rozkładów na zmiennej ukrytej (m.in. Gamma oraz Beta).
+                Opisano również, w jaki sposób wykorzystać regularyzację rozkładem Beta do znalezienia kompatkowej
+                reprezentacji binarnej dla chmur punktów 3D.
+                Opisane modele zaimplementowano i przeprowadzono szereg eksperymentów sprawdzających ich zdolność
+                rekonstrukcji oraz możliwości generatywne.}
+\englishabstract{The following work demonstrates the possibility of using a variational autoencoder (VAE)
+                for obtaining representations (including a compact binary one) for 3D point clouds.
+                The paper includes theoretical baseline study of training variational autoencoders with
+                a normally-distributed latent variable. Methods for regularization of the latent variable
+                with a more complex distribution (such as Gamma or Beta) have also been presented.
+                The work includes also a description of how to use a variational autoencoder with Beta
+                regularization to obtain a compact binary representation for 3D point clouds.
+                All described models have later been implemented and tested with a variety of experiments
+                focusing on their reconstructive and generative capabilites.}
 \advisor        {dr Rafał Nowak}
 \author         {Jakub Zadrożny}
 \date           {6 września 2019}
@@ -21,6 +37,46 @@
 \begin{document}
 
 \chapter{Wprowadzenie}
+Modele generatywne, takie jak autoenkoder wariacyjny, stały się obecnie jednym z podstawowych narzędzi
+do pracy z wielomami rodzajami danych od zdjęć twarzy do plików muzycznych.
+Umożliwiają one znajdowanie efektywnych i interpretowalnych reprezentacji, które
+pozwalają nie tylko na generowanie syntetycznych danych, ale rozwiązują również problemy takie
+jak gładka inerpolacja pomiędzy dwoma obiektami, czy edycja poprzez ayrtmetykę na zmiennej ukrytej.
+
+Obecnie jednak, dzięki popularyzacji urządzeń reprezentujących głębię obrazu,
+takich jak LIDAR i kamera RGB-D, coraz większą rolę odgrywają chmury punktów 3D.
+Wykorzystuje się je w wielu nowoczesnych, rewolucyjnych i kluczowych dla postępu technologiach,
+m.in. pojazdach autonomicznych, robotyce oraz wirtualnej i rozszerzonej rzeczywistości.
+Chmury punktów są dość skomplikowanymi danymi, które zajmują znacznie ilości miejsca i przetwarzane
+w oryginalnej postaci nakładają spory narzut obliczeniowy. Dlatego istotnym zagadnieniem
+jest znalezienie odpowiedniej reprezentacji dla takich danych. Taka reprezentacja
+musi być kompaktowa, aby zmniejszyć narzut pamięciowy i obliczeniowy, a model powininen być generatywny,
+żeby umożliwić tworzenie i edycję obiektów.
+
+Chmury punktów 3D są aktywnym obszarem badań i na przestrzeni ostatnich lat powstało zarówno
+wiele problemów (np. zbiory ShapeNet \cite{shapenet} i ModelNet40 \cite{modelnet}), jak i
+rozwiązań (np. architektura PointNet \cite{pointnet} i metryka EMD \cite{emd}).
+Niektóre z tych osiągnięć pozwalają tworzyć kolejne, bardziej zaawansowane modele,
+m.in. opisany w tej pracy autoenkoder wariacyjny, który na podstawie znalezionej reprezentacji
+potrafi rekonstruować i generować nowe chmury punktów.
+
+Jednym ze znanych problemów VAE, jest trudność narzucenia na zmienną ukrytą niektórych mniej typowych rozkładów.
+W dalszej częśc pracy opisano możliwe rozwiązania tego problemu, rozszerzające możliwości VAE,
+dzięki którym da się regularyzować zmienną ukrytą np. rozkładem Gamma i Beta.
+Podano również metodą, która pozwala wykorzystać VAE do znalezienia kompaktowej reprezentacji binarnej, która
+pozwala zmniejszyć ilość przechowywanych i przetwarzanych danych -- kwestii kluczowej przy
+stale rosnących rozmiarach i większej ilości danych.
+Uzyskana reprezentacja zajmuje jedynie 128 bitów -- tyle, ile czterowymiarowa
+reprezentacja ciągła -- jednak posiada znacznie większą zdolność rekonstrukcji, nie poświęcając
+przy tym możliwości generatywnych.
+
+Podsumuwując, praca składa się z czterech głównych części: (1) zawiera opis teoretycznych podstaw
+autoenkodera wiaracyjnego, (2) podaje sposoby wymuszenia różnych rozkładów na zmiennej ukrytej,
+(3) zawiera eksperymenty demonstrujące zdolności wytrenowanego modelu do rekonstrukcji,
+generowania syntetycznych danych, interpolacji oraz edycji obiektów przez arytmetykę na zmiennej ukrytej
+i (4) opsiuje sposób, w jaki można wykorzystać VAE z regularyzacją rozkładem Beta do otrzymania
+kompaktowej (128 bitów) reprezentacji binarnej chmur punktów i potwierdza skuteczność tej
+reprezentacji eksperymentami.
 
 \chapter{Powiązane badania}
 
@@ -70,7 +126,7 @@ Rozszerzenie tej metody na kolejne rodziny rozkładów zostało zaproponowane w 
 Autorzy wprowadzają metodę, która pozwala w efektywny sposób szacować gradienty funkcji kosztu,
 nawet gdy zmienne pośrednie pochodzą z trudnych rozkładów jak gamma i beta.
 
-\section{Klasteryzacja}
+% \section{Klasteryzacja}
 
 \chapter{Metody}
 \section{Autoenkoder wariacyjny z rozkładem normalnym}
@@ -421,7 +477,7 @@ Mając do dyspozycji wylosowane zmienne $z_i$, dla których możemy propagować 
 wstecz, używamy estymatora Monte Carlo i kosztu rekonstrukcji jak w równaniu (\ref{eq:final_rec_loss}).
 
 % \section{Model \textit{M2} Kingmy}
-\section{Autoenkoder wariacyjny z mieszanką gaussowską}
+% \section{Autoenkoder wariacyjny z mieszanką gaussowską}
 
 \chapter{Implementacja i architektura modeli}
 Metody opsiane w sekcjach \ref{sec:vae_normal} i \ref{sec:vae_beta} zawierają
@@ -891,6 +947,22 @@ z tych możliwości.
 \end{figure}
 
 \chapter{Wnioski}
+W tej pracy przedstawiono kompleksowy opis teoretyczny autoenkodera wariacyjnego
+oraz wskazano, jak można wykorzystać go, do znalezienia efektywnej reprezentacji dla
+chmur punktów 3D. Co więcej, dzięki zastosowaniu różnych rozszerzeń do metody podstawowej
+opisano, w jaki sposób można regularyzować zmienną ukrytę wieloma skomplikowanymi rozkładami.
+Dalej wykorzystano autoenkoder wariacyjny z opisanymi rozszerzeniami do uzyskania dyskretnej
+reprezentacji binarnej, na której wciąż możliwe było interpolowanie pomiędzy obiektami
+oraz edycja obiektów za pomocą arytmetyki na zmiennych ukrytych.
+Opisane modele zaimplementowano i przetestowano pod kątem zdolności rekonstrukcji i możliwości
+generatywnych, co pokazało ich dobre wyniki i liczne możliwości.
+
+Przeprowadzona w tej pracy analiza autoenkoderów wariacyjnych potwierdza ich ogromny potencjał.
+Dzięki zastosowaniu odpowiednio zaawansowanej architektury (PointNet) VAE potrafi dopasować
+się do trudnych zbiorów danych i osiągnąć satysfakcjonujące wyniki.
+Ponadto bazując na podstawach VAE i wprowadzając do niego rozszerzenia można uzyskać
+modele generatywne pełniące dodatkowe funckje, takie jak produkowanie reprezentacji binarnej,
+czy klasteryzacja, które osiągają bardzo dobre rezultaty.
 
 \clearpage
 

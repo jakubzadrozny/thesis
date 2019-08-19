@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 
 from datasets import JointDataset
 from transforms import SetRotation
-from vae import NPCVAE, BPCVAE
+from vae import NPCVAE, BPCVAE, AE
 from eval import loss_on_loader
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -88,7 +88,7 @@ def train_vae(model, train_dataset, test_dataset, M=1, num_epochs=1000):
 if __name__ == '__main__':
     train_dataset = JointDataset(filter=1, transform_shapenet=SetRotation((0, math.acos(0), 0)))
     test_dataset = JointDataset(filter=1, test=True, transform_shapenet=SetRotation((0, math.acos(0), 0)))
-    model = BPCVAE()
+    model = AE()
     model.to(device)
     train_vae(model, train_dataset, test_dataset, num_epochs=2500, M=1)
 
