@@ -14,7 +14,7 @@ class AE(SaveableModule):
     def __init__(self, latent=128, decoder=[512, 1024, 1024, 2048], encoder=[]):
         super().__init__()
         self.decoder = prep_seq(latent, *decoder, PC_OUT_DIM)
-        self.encoder = SimplePointnetEncoder(*encoder, 2*latent)
+        self.encoder = SimplePointnetEncoder(*encoder, latent)
 
     def rec_loss(self, x, rec):
         return torch.mean(cd(rec, x))
