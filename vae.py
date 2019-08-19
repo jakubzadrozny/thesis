@@ -26,7 +26,8 @@ class AE(SaveableModule):
     def elbo_loss(self, x, M=1):
         z = self.encoder(x)
         rec = self.decoder(z).view(x.shape)
-        return self.rec_loss(x, rec)
+        recl = self.rec_loss(x, rec)
+        return recl, {'rec': recl.item()}
 
 
 class VAE(SaveableModule):
