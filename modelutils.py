@@ -30,7 +30,7 @@ def logbeta(a, b):
 
 def one_hot(y, K):
     N = y.shape[0]
-    x = torch.zeros((N, K), device=y.device)
+    x = torch.zeros(N, K)
     x[torch.arange(0, N, 1), y] = 1
     return x
 
@@ -45,89 +45,26 @@ def prep_seq(*dims, bnorm=False):
     return nn.Sequential(*layers)
 
 
-class SimplePointnetEncoder(nn.Module):
-    def __init__(self, *dims):
+class SoloPointnetEncoder(nn.Module):
+    def __init__(self):
         super().__init__()
         self.feats = PointNetfeat()
-        self.fc = prep_seq(1024, *dims, bnorm=True)
         self.bnorm = nn.BatchNorm1d(1024)
 
     def forward(self, x):
         x = self.feats(x)[0]
-        x = self.bnorm(F.relu(x))
+        return self.bnorm(F.relu(x))
+
+
+class SimplePointnetEncoder(nn.Module):
+    def __init__(self, *dims):
+        super().__init__()
+        self.pointnet = SoloPointnetEncoder()
+        self.fc = prep_seq(1024, *dims, bnorm=True)
+
+    def forward(self, x):
+        x = self.pointnet(x)
         return self.fc(x)
-
-class ExpPointnetEncoder(nn.Module):
-    def __init__(self, *dims, eps=1e-6):
-        super().__init__()
-        self.encoder = SimplePointnetEncoder(*dims)
-        self.eps = eps
-
-    def forward(self, x):
-        x = self.encoder(x)
-        return torch.clamp(torch.exp(x), min=self.eps, max=1.0/self.eps)
-
-
-class PointnetSoftmaxEncoder(SimplePointnetEncoder):
-    def forward(self, x):
-        x = super().forward(x)
-        return F.log_softmax(x, dim=1)
-
-
-class ClassPointentEncoder(nn.Module):
-    def __init__(self, hidden, K, latent):
-        super().__init__()
-        self.feats = PointNetfeat()
-        self.fc1 = nn.Linear(1024 + K, hidden)
-        self.fc2 = nn.Linear(hidden, latent)
-        self.bnorm1 = nn.BatchNorm1d(1024)
-        self.bnorm2 = nn.BatchNorm1d(hidden)
-
-    def forward(self, x, y):
-        x = F.relu(self.feats(x)[0])
-        x = self.bnorm1(x)
-        x = torch.cat((x, y), dim=1)
-        x = F.relu(self.fc1(x))
-        x = self.bnorm2(x)
-        x = self.fc2(x)
-        return x
-
-
-class ClassMLP(nn.Module):
-    def __init__(self, K, *layers):
-        super().__init__()
-        self.tail = prep_seq(layers[0]+K, *layers[1:])
-
-    def forward(self, x, y):
-        x = torch.cat((x, y), dim=1)
-        return self.tail(x)
-
-
-class SigmoidClassMLP(ClassMLP):
-    def forward(self, x, y):
-        x = super().forward(x, y)
-        return torch.sigmoid(x)
-
-
-class GMDecoder(nn.Module):
-    def __init__(self, K, dims):
-        self.y_to_mean = nn.Linear(K, dims[0])
-        self.y_to_cov = nn.Linear(K, dims[0])
-        self.tail = prep_seq(*dims)
-
-    def forward(self, y, z):
-        mean = self.y_to_mean(y)
-        cov_diag = torch.sqrt(F.softplus(self.y_to_cov(y)))
-        cov_mat = torch.diag(cov_diag)
-        noise = torch.matmul(z, cov_mat)
-        h = F.relu(mean + noise)
-        return self.tail(h)
-
-
-class SigmoidGMDecoder(GMDecoder):
-    def forward(self, y, z):
-        x = super().forward(y, z)
-        return torch.sigmoid(x)
 
 
 class SaveableModule(nn.Module):
@@ -145,6 +82,68 @@ class SaveableModule(nn.Module):
         loaded.load_state_dict(torch.load(os.path.join(MODELS_DIR, name+MODELS_EXT)))
         loaded.eval()
         return loaded
+
+
+# class PointnetSoftmaxEncoder(SimplePointnetEncoder):
+#     def forward(self, x):
+#         x = super().forward(x)
+#         return F.log_softmax(x, dim=1)
+#
+#
+# class ClassPointentEncoder(nn.Module):
+#     def __init__(self, hidden, K, latent):
+#         super().__init__()
+#         self.feats = PointNetfeat()
+#         self.fc1 = nn.Linear(1024 + K, hidden)
+#         self.fc2 = nn.Linear(hidden, latent)
+#         self.bnorm1 = nn.BatchNorm1d(1024)
+#         self.bnorm2 = nn.BatchNorm1d(hidden)
+#
+#     def forward(self, x, y):
+#         x = F.relu(self.feats(x)[0])
+#         x = self.bnorm1(x)
+#         x = torch.cat((x, y), dim=1)
+#         x = F.relu(self.fc1(x))
+#         x = self.bnorm2(x)
+#         x = self.fc2(x)
+#         return x
+#
+#
+# class ClassMLP(nn.Module):
+#     def __init__(self, K, *layers):
+#         super().__init__()
+#         self.tail = prep_seq(layers[0]+K, *layers[1:])
+#
+#     def forward(self, x, y):
+#         x = torch.cat((x, y), dim=1)
+#         return self.tail(x)
+#
+#
+# class SigmoidClassMLP(ClassMLP):
+#     def forward(self, x, y):
+#         x = super().forward(x, y)
+#         return torch.sigmoid(x)
+#
+#
+# class GMDecoder(nn.Module):
+#     def __init__(self, K, dims):
+#         self.y_to_mean = nn.Linear(K, dims[0])
+#         self.y_to_cov = nn.Linear(K, dims[0])
+#         self.tail = prep_seq(*dims)
+#
+#     def forward(self, y, z):
+#         mean = self.y_to_mean(y)
+#         cov_diag = torch.sqrt(F.softplus(self.y_to_cov(y)))
+#         cov_mat = torch.diag(cov_diag)
+#         noise = torch.matmul(z, cov_mat)
+#         h = F.relu(mean + noise)
+#         return self.tail(h)
+#
+#
+# class SigmoidGMDecoder(GMDecoder):
+#     def forward(self, y, z):
+#         x = super().forward(y, z)
+#         return torch.sigmoid(x)
 
 
 # minS = torch.argmin(d, dim=2).expand((3, -1, -1)).permute(1, 0, 2)

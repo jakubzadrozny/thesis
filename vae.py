@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import torch.distributions as distrib
 
 from datasets import PC_OUT_DIM
-from modelutils import (SimplePointnetEncoder, ExpPointnetEncoder, SaveableModule,
+from modelutils import (SimplePointnetEncoder, SaveableModule,
                         prep_seq, cd, logbeta)
 
 
@@ -99,10 +99,12 @@ class BPCVAE(VAE):
         self.prior_logbeta = logbeta(torch.tensor(alpha_prior), torch.tensor(beta_prior))
 
         self.decoder = prep_seq(latent, *decoder, PC_OUT_DIM)
-        self.encoder = ExpPointnetEncoder(*encoder, 2*latent)
+        self.encoder = SimplePointnetEncoder(*encoder, 2*latent)
 
     def encode(self, x, binarize=False):
-        z, alpha, beta = super().encode(x)
+        x = torch.exp(self.encoder(x))
+        alpha, beta = torch.chunk(x, 2, dim=1)
+        z = self.sample(alpha, beta)
         if binarize:
             z = (z > 0.5).float()
         return z, alpha, beta

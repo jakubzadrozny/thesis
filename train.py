@@ -10,6 +10,7 @@ from torch.utils.data import DataLoader
 from datasets import JointDataset
 from transforms import SetRotation
 from vae import NPCVAE, BPCVAE, AE
+from gmvae import GMVAE
 from eval import loss_on_loader
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -36,7 +37,7 @@ def train_unsupervised(model, optimizer, scheduler, train_loader, test_loader,
 
             scheduler.step()
 
-            if (epoch % 5) == 1 or epoch == num_epochs-1:
+            if (epoch % 25) == 1 or epoch == num_epochs-1:
                 train_loss, train_stats = loss_on_loader(model, train_loader, M=M, device=device)
                 test_loss, test_stats = loss_on_loader(model, test_loader, M=M, device=device)
 
@@ -88,7 +89,7 @@ def train_vae(model, train_dataset, test_dataset, M=1, num_epochs=1000):
 if __name__ == '__main__':
     train_dataset = JointDataset(filter=1, transform_shapenet=SetRotation((0, math.acos(0), 0)))
     test_dataset = JointDataset(filter=1, test=True, transform_shapenet=SetRotation((0, math.acos(0), 0)))
-    model = AE()
+    model = GMVAE()
     model.to(device)
     train_vae(model, train_dataset, test_dataset, num_epochs=2500, M=1)
 

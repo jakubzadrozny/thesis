@@ -2,112 +2,106 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 
-from modelutils import (SimplePointnetEncoder, PointnetSoftmaxEncoder, ClassPointentEncoder,
-                        ClassMLP, SigmoidClassMLP, GMDecoder, SigmoidGMDecoder, SaveableModule,
-                        prep_seq, cd, gaussian_sample, one_hot)
-
-LATENT = 128
-ENCODER_HIDDEN = 1024
-OUT_DIM = 3*2048
-DECODER_DIMS = [LATENT, 512, 1024, 1024, 2048, OUT_DIM]
-NUM_CLASSESS = 3
-
-MNIST_LATENT = 64
-MNIST_HIDDEN = 512
-MNIST_INPUT_DIM = 784
-MNIST_CLASSES = 10
+from datasets import PC_OUT_DIM
+from modelutils import (SoloPointnetEncoder, SimplePointnetEncoder,
+                        SaveableModule, prep_seq, cd, one_hot)
 
 
 class GMVAE(SaveableModule):
 
     DEFAULT_SAVED_NAME = 'gmvae'
 
-    def __init__(self, K):
-        super().__init__(K=NUM_CLASSESS)
-        self.num_classes = K
-        self.class_encoder = PointnetSoftmaxEncoder(ENCODER_HIDDEN, self.num_classes)
-        self.sigma_encoder = SimplePointnetEncoder(ENCODER_HIDDEN, LATENT)
-        self.mean_encoder = ClassPointentEncoder(ENCODER_HIDDEN, self.num_classes, LATENT)
-        self.decoder = prep_seq(*DECODER_DIMS)
-        self.gm_components = prep_seq(self.num_classes, 2*LATENT, 2*LATENT)
+    def __init__(self, latent=128, clusters=10, encoder=[], decoder=[512, 1024, 1024, 2048], rec_var=1e-3):
+        super().__init__()
+        self.rec_var_inv = 1.0/rec_var
+        self.clusters = clusters
 
-    def encode_y(self, x):
-        return self.class_encoder(x)
+        self.pointnet = SoloPointnetEncoder()
+        self.cat_encoder = nn.Sequential(nn.Linear(1024, clusters), nn.LogSoftmax(dim=1))
+        self.lat_encoder = prep_seq(1024+clusters, *encoder, 2*latent, bnorm=True)
+        self.decoder = prep_seq(latent, *decoder, PC_OUT_DIM)
+        self.components = prep_seq(clusters, 256, 2*latent)
 
-    def get_gm_components(self, y):
-        components = self.gm_components(y)
-        return torch.chunk(components, 2, dim=1)
+    def sample(self, z_mean, z_log_sigma2):
+        z_sigma = torch.exp(0.5 * z_log_sigma2)
+        epsilon = torch.randn_like(z_mean)
+        return epsilon*z_sigma + z_mean
 
-    def encode_z_based_on_y(self, x, y):
-        z_params = self.latent_encoder(x, y)
-        return torch.chunk(z_params, 2, dim=1)
+    def encode_z(self, y, feats):
+        params = self.lat_encoder(torch.cat((y, feats), dim=1))
+        z_mean, z_log_sigma2 = torch.chunk(params, 2, dim=1)
+        z = self.sample(z_mean, z_log_sigma2)
+        return z, z_mean, z_log_sigma2
 
-    def decode(self, z_mean, z_log_sigma2, shape):
-        z = gaussian_sample(z_mean, z_log_sigma2)
-        rec = self.decoder(z)
-        return rec.view(shape)
+    def get_components(self, y):
+        params = self.components(y)
+        return torch.chunk(params, 2, dim=1)
 
     def rec_loss(self, x, rec):
-        return cd(x, rec)
+        return self.rec_var_inv*cd(x, rec)
 
-    def elbo_known_y(self, x, y, lbd=0.0, M=1):
-        z_mean, z_log_sigma2 = self.encode_z_based_on_y(x, y)
-        components_mean, components_log_sigma2 = self.get_gm_components(y)
-        mean_diff = components_mean - z_mean
-        KL_loss = torch.clamp(
-            0.5*torch.sum(
-                -1.0 +
-                torch.exp(z_log_sigma2-components_log_sigma2) +
-                components_log_sigma2 - z_log_sigma2 +
-                (mean_diff ** 2) * torch.exp(-components_log_sigma2),
-                dim=1),
-            min=lbd
-        )
-        y_penalty = -torch.log(torch.tensor(1/self.num_classes, device=y.device)).expand_as(KL_loss)
-        rec_loss = []
+    def elbo_for_y(self, x, y, feats, M=1):
+        _, z_mean, z_log_sigma2 = self.encode_z(y, feats)
+        components_mean, components_log_sigma2 = self.get_components(y)
+
+        KL_loss = 0.5*torch.sum(
+            -1.0 +
+            torch.exp(z_log_sigma2-components_log_sigma2) +
+            components_log_sigma2 - z_log_sigma2 +
+            ((components_mean-z_mean) ** 2) * torch.exp(-components_log_sigma2)
+        , dim=1)
+
+        y_penalty = torch.full_like(KL_loss, -torch.log(torch.tensor(1/self.clusters)), device=KL_loss.device)
+
+        rec_loss = torch.zeros_like(KL_loss, device=KL_loss.device)
         for i in range(M):
-            rec = self.decode(z_mean, z_log_sigma2, x.shape)
-            rec_loss.append(self.rec_loss(x, rec))
-        rec_loss = torch.mean(torch.stack(rec_loss, dim=1), dim=1)
+            z = self.sample(z_mean, z_log_sigma2)
+            rec = self.decoder(z).view(x.shape)
+            rec_loss += self.rec_loss(x, rec)
+        rec_loss /= M
+
         return rec_loss + KL_loss + y_penalty
 
-    def elbo_loss(self, x, lbd=0.0, M=1):
-        log_prob_y = self.encode_y(x)
+    def elbo_loss(self, x, M=1):
+        feats = self.pointnet(x)
+        log_prob_y = self.cat_encoder(feats)
         prob_y = torch.exp(log_prob_y)
-        losses = []
+
+        loss_list = []
         N = x.shape[0]
-        for i in range(self.num_classes):
-            y = one_hot(torch.full((N,), i, dtype=torch.long, device=x.device), self.num_classes)
-            loss = self.elbo_known_y(x, y, lbd=lbd, M=M)
-            losses.append(loss)
-        loss_guessed_y = torch.stack(losses, dim=1)
-        loss = torch.mean(torch.sum(prob_y * loss_guessed_y, dim=1))
-        entropy = -torch.mean(torch.sum(prob_y * log_prob_y, dim=1))
-        return loss - entropy, {'loss': loss.item(), 'entropy': entropy.item()}
-
-    def classify(self, x):
-        y = self.encode_y(x)
-        return torch.argmax(y, dim=1)
+        for i in range(self.clusters):
+            y = one_hot(torch.full((N,), i, dtype=torch.long), self.clusters).to(x.device)
+            loss = self.elbo_for_y(x, y, feats, M=M)
+            loss_list.append(loss)
+        loss_per_y = torch.stack(loss_list, dim=1)
+        loss = torch.mean(torch.sum(prob_y * loss_per_y, dim=1))
+        entropy = torch.mean(torch.sum(prob_y * log_prob_y, dim=1))
+        return loss + entropy, {'loss': loss.item(), 'entropy': entropy.item()}
 
 
-class MNISTGMVAE(GMVAE):
+# MNIST_LATENT = 64
+# MNIST_HIDDEN = 512
+# MNIST_INPUT_DIM = 784
+# MNIST_CLASSES = 10
 
-    DEFAULT_SAVED_NAME = 'mnistgmvae'
-
-    def __init__(self):
-        super(SaveableModule, self).__init__()
-        self.num_classes = MNIST_CLASSES
-        self.class_encoder = nn.Sequential(
-            prep_seq(MNIST_INPUT_DIM, MNIST_HIDDEN, MNIST_HIDDEN, self.num_classes),
-            nn.LogSoftmax(dim=1),
-        )
-        self.latent_encoder = ClassMLP(self.num_classes,
-                                     MNIST_INPUT_DIM, MNIST_HIDDEN, MNIST_HIDDEN, 2*MNIST_LATENT)
-        self.decoder = nn.Sequential(
-            prep_seq(MNIST_LATENT, MNIST_HIDDEN, MNIST_HIDDEN, MNIST_INPUT_DIM),
-            nn.Sigmoid(),
-        )
-        self.gm_components = prep_seq(self.num_classes, 2*MNIST_LATENT)
-
-    def rec_loss(self, x, rec):
-        return torch.sum(F.binary_cross_entropy(rec, x, reduction='none'), dim=1)
+# class MNISTGMVAE(GMVAE):
+#
+#     DEFAULT_SAVED_NAME = 'mnistgmvae'
+#
+#     def __init__(self):
+#         super(SaveableModule, self).__init__()
+#         self.num_classes = MNIST_CLASSES
+#         self.class_encoder = nn.Sequential(
+#             prep_seq(MNIST_INPUT_DIM, MNIST_HIDDEN, MNIST_HIDDEN, self.num_classes),
+#             nn.LogSoftmax(dim=1),
+#         )
+#         self.latent_encoder = ClassMLP(self.num_classes,
+#                                      MNIST_INPUT_DIM, MNIST_HIDDEN, MNIST_HIDDEN, 2*MNIST_LATENT)
+#         self.decoder = nn.Sequential(
+#             prep_seq(MNIST_LATENT, MNIST_HIDDEN, MNIST_HIDDEN, MNIST_INPUT_DIM),
+#             nn.Sigmoid(),
+#         )
+#         self.gm_components = prep_seq(self.num_classes, 2*MNIST_LATENT)
+#
+#     def rec_loss(self, x, rec):
+#         return torch.sum(F.binary_cross_entropy(rec, x, reduction='none'), dim=1)
