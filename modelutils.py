@@ -34,6 +34,12 @@ def one_hot(y, K):
     x[torch.arange(0, N, 1), y] = 1
     return x
 
+def generate_random_points(n, d):
+    x = torch.zeros(n, d)
+    for i in range(n):
+        x[i, i//2] = 1 if i % 2 == 0 else -1
+    return x
+
 def prep_seq(*dims, bnorm=False):
     layers = []
     for i in range(len(dims)-2):

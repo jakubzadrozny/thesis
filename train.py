@@ -89,9 +89,9 @@ def train_vae(model, train_dataset, test_dataset, M=1, num_epochs=1000):
 if __name__ == '__main__':
     train_dataset = JointDataset(filter=1, transform_shapenet=SetRotation((0, math.acos(0), 0)))
     test_dataset = JointDataset(filter=1, test=True, transform_shapenet=SetRotation((0, math.acos(0), 0)))
-    model = GMVAE()
+    model = GMVAE(clusters=8)
     model.to(device)
-    train_vae(model, train_dataset, test_dataset, num_epochs=2500, M=1)
+    train_vae(model, train_dataset, test_dataset, num_epochs=3000, M=1)
 
 
 # def train_m2(model, train_dataset, drop_labels=0.0, log_every=200):

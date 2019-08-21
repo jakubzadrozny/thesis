@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 from datasets import PC_OUT_DIM
 from modelutils import (SoloPointnetEncoder, SimplePointnetEncoder,
-                        SaveableModule, prep_seq, cd, one_hot)
+                        SaveableModule, prep_seq, cd, one_hot, generate_random_points)
 
 
 class GMVAE(SaveableModule):
@@ -20,7 +20,8 @@ class GMVAE(SaveableModule):
         self.cat_encoder = nn.Sequential(nn.Linear(1024, clusters), nn.LogSoftmax(dim=1))
         self.lat_encoder = prep_seq(1024+clusters, *encoder, 2*latent, bnorm=True)
         self.decoder = prep_seq(latent, *decoder, PC_OUT_DIM)
-        self.components = prep_seq(clusters, 256, 2*latent)
+        self.means = generate_random_points(clusters, latent)
+        # self.components = prep_seq(clusters, 256, 2*latent)
 
     def sample(self, z_mean, z_log_sigma2):
         z_sigma = torch.exp(0.5 * z_log_sigma2)
@@ -33,22 +34,23 @@ class GMVAE(SaveableModule):
         z = self.sample(z_mean, z_log_sigma2)
         return z, z_mean, z_log_sigma2
 
-    def get_components(self, y):
-        params = self.components(y)
-        return torch.chunk(params, 2, dim=1)
+    # def get_components(self, y):
+        # params = self.components(y)
+        # return torch.chunk(params, 2, dim=1)
 
     def rec_loss(self, x, rec):
         return self.rec_var_inv*cd(x, rec)
 
     def elbo_for_y(self, x, y, feats, M=1):
         _, z_mean, z_log_sigma2 = self.encode_z(y, feats)
-        components_mean, components_log_sigma2 = self.get_components(y)
+        target_mean = self.means[torch.nonzero(y)[0,1]]
+        # components_mean, components_log_sigma2 = self.get_components(y)
 
         KL_loss = 0.5*torch.sum(
-            -1.0 +
-            torch.exp(z_log_sigma2-components_log_sigma2) +
-            components_log_sigma2 - z_log_sigma2 +
-            ((components_mean-z_mean) ** 2) * torch.exp(-components_log_sigma2)
+            - 1.0
+            + torch.exp(z_log_sigma2)
+            - z_log_sigma2
+            + ((target_mean-z_mean) ** 2)
         , dim=1)
 
         y_penalty = torch.full_like(KL_loss, -torch.log(torch.tensor(1/self.clusters)), device=KL_loss.device)
