@@ -20,7 +20,7 @@ class GMVAE(SaveableModule):
         self.cat_encoder = nn.Sequential(nn.Linear(1024, clusters), nn.LogSoftmax(dim=1))
         self.lat_encoder = prep_seq(1024+clusters, *encoder, 2*latent, bnorm=True)
         self.decoder = prep_seq(latent, *decoder, PC_OUT_DIM)
-        self.means = generate_random_points(clusters, latent)
+        self.register_buffer('means', generate_random_points(clusters, latent))
         # self.components = prep_seq(clusters, 256, 2*latent)
 
     def sample(self, z_mean, z_log_sigma2):
