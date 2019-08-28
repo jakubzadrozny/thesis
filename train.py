@@ -38,8 +38,6 @@ def train_unsupervised(model, optimizer, scheduler, train_loader, test_loader,
 
             scheduler.step()
 
-            print('Epoch ', epoch)
-
             if (epoch % 10) == 1 or epoch == num_epochs-1:
                 train_loss, train_stats = loss_on_loader(model, train_loader, M=M, device=device)
                 test_loss, test_stats = loss_on_loader(model, test_loader, M=M, device=device)
@@ -92,7 +90,7 @@ def train_vae(model, train_dataset, test_dataset, M=1, num_epochs=1000):
 if __name__ == '__main__':
     train_dataset = JointDataset(filter=1, transform_shapenet=SetRotation((0, math.acos(0), 0)))
     test_dataset = JointDataset(filter=1, test=True, transform_shapenet=SetRotation((0, math.acos(0), 0)))
-    prior_means = 10*generate_random_points(16, 128)
+    prior_means = 5*generate_random_points(16, 128)
     np.save('prior_means', prior_means.detach().numpy())
     model = GMVAE(clusters=16, prior_means=prior_means)
     model.to(device)
