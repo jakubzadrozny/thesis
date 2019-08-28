@@ -9,9 +9,9 @@ from torch.utils.data import DataLoader
 
 from datasets import JointDataset
 from transforms import SetRotation
-from vae import NPCVAE, BPCVAE, AE
-from gmvae import GMVAE
+from vae import NPCVAE, BPCVAE, AE, GPCVAE
 from eval import loss_on_loader
+from modelutils import generate_random_points
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
@@ -31,37 +31,40 @@ def train_unsupervised(model, optimizer, scheduler, train_loader, test_loader,
                 optimizer.zero_grad()
 
                 loss, stats = model.elbo_loss(x, M=M)
+                print(loss, stats)
 
                 loss.backward()
                 optimizer.step()
 
             scheduler.step()
 
-            if (epoch % 25) == 1 or epoch == num_epochs-1:
-                train_loss, train_stats = loss_on_loader(model, train_loader, M=M, device=device)
-                test_loss, test_stats = loss_on_loader(model, test_loader, M=M, device=device)
+            print('Epoch ', epoch)
 
-                logs['train_loss'].append(train_loss)
-                logs['test_loss'].append(test_loss)
-                for key, val in train_stats.items():
-                    logs['train'+key].append(val)
-                for key, val in test_stats.items():
-                    logs['test'+key].append(val)
-
-                if test_loss < best_loss:
-                    best_loss = test_loss
-                    best_params = model.state_dict()
-
-                print("Epoch {epoch}\ntrain loss={train_loss}, train stats={train_stats}\n"
-                      "test loss={test_loss}, test stats={test_stats}"
-                       .format(epoch=epoch, train_loss=train_loss, train_stats=train_stats,
-                               test_loss=test_loss, test_stats=test_stats)
-                     )
+            # if True or (epoch % 25) == 1 or epoch == num_epochs-1:
+            #     train_loss, train_stats = loss_on_loader(model, train_loader, M=M, device=device)
+            #     test_loss, test_stats = loss_on_loader(model, test_loader, M=M, device=device)
+            #
+            #     logs['train_loss'].append(train_loss)
+            #     logs['test_loss'].append(test_loss)
+            #     for key, val in train_stats.items():
+            #         logs['train'+key].append(val)
+            #     for key, val in test_stats.items():
+            #         logs['test'+key].append(val)
+            #
+            #     if test_loss < best_loss:
+            #         best_loss = test_loss
+            #         best_params = model.state_dict()
+            #
+            #     print("Epoch {epoch}\ntrain loss={train_loss}, train stats={train_stats}\n"
+            #           "test loss={test_loss}, test stats={test_stats}"
+            #            .format(epoch=epoch, train_loss=train_loss, train_stats=train_stats,
+            #                    test_loss=test_loss, test_stats=test_stats)
+            #          )
 
     except KeyboardInterrupt:
         pass
 
-    model.load_state_dict(best_params)
+    # model.load_state_dict(best_params)
     model.eval()
     model.cpu()
 
@@ -69,10 +72,10 @@ def train_unsupervised(model, optimizer, scheduler, train_loader, test_loader,
     model.save_to_drive()
     print('done.')
 
-    print('Saving training logs...', end='')
-    np_logs = np.stack([np.array(item) for item in logs.values()], axis=0)
-    np.save('train_logs', np_logs)
-    print('done.')
+    # print('Saving training logs...', end='')
+    # np_logs = np.stack([np.array(item) for item in logs.values()], axis=0)
+    # np.save('train_logs', np_logs)
+    # print('done.')
 
 
 def train_vae(model, train_dataset, test_dataset, M=1, num_epochs=1000):
@@ -89,7 +92,9 @@ def train_vae(model, train_dataset, test_dataset, M=1, num_epochs=1000):
 if __name__ == '__main__':
     train_dataset = JointDataset(filter=1, transform_shapenet=SetRotation((0, math.acos(0), 0)))
     test_dataset = JointDataset(filter=1, test=True, transform_shapenet=SetRotation((0, math.acos(0), 0)))
-    model = GMVAE(clusters=8)
+    prior_means = generate_random_points(16, 128)
+    np.save('prior_means', prior_means.detach().numpy())
+    model = GPCVAE(clusters=16, prior_components=prior_means)
     model.to(device)
     train_vae(model, train_dataset, test_dataset, num_epochs=3000, M=1)
 
