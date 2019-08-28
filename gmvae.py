@@ -11,7 +11,8 @@ class GMVAE(SaveableModule):
 
     DEFAULT_SAVED_NAME = 'gmvae'
 
-    def __init__(self, latent=128, clusters=10, encoder=[], decoder=[512, 1024, 1024, 2048], rec_var=1e-3):
+    def __init__(self, clusters, prior_means,
+                 latent=128, encoder=[], decoder=[512, 1024, 1024, 2048], rec_var=1e-3):
         super().__init__()
         self.rec_var_inv = 1.0/rec_var
         self.clusters = clusters
@@ -20,7 +21,7 @@ class GMVAE(SaveableModule):
         self.cat_encoder = nn.Sequential(nn.Linear(1024, clusters), nn.LogSoftmax(dim=1))
         self.lat_encoder = prep_seq(1024+clusters, *encoder, 2*latent, bnorm=True)
         self.decoder = prep_seq(latent, *decoder, PC_OUT_DIM)
-        self.register_buffer('means', generate_random_points(clusters, latent))
+        self.register_buffer('means', prior_means)
         # self.components = prep_seq(clusters, 256, 2*latent)
 
     def sample(self, z_mean, z_log_sigma2):

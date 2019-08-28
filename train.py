@@ -9,7 +9,8 @@ from torch.utils.data import DataLoader
 
 from datasets import JointDataset
 from transforms import SetRotation
-from vae import NPCVAE, BPCVAE, AE, GPCVAE
+from vae import NPCVAE, BPCVAE, AE
+from gmvae import GMVAE
 from eval import loss_on_loader
 from modelutils import generate_random_points
 
@@ -39,7 +40,7 @@ def train_unsupervised(model, optimizer, scheduler, train_loader, test_loader,
 
             print('Epoch ', epoch)
 
-            if True or (epoch % 25) == 1 or epoch == num_epochs-1:
+            if (epoch % 10) == 1 or epoch == num_epochs-1:
                 train_loss, train_stats = loss_on_loader(model, train_loader, M=M, device=device)
                 test_loss, test_stats = loss_on_loader(model, test_loader, M=M, device=device)
 
@@ -91,9 +92,9 @@ def train_vae(model, train_dataset, test_dataset, M=1, num_epochs=1000):
 if __name__ == '__main__':
     train_dataset = JointDataset(filter=1, transform_shapenet=SetRotation((0, math.acos(0), 0)))
     test_dataset = JointDataset(filter=1, test=True, transform_shapenet=SetRotation((0, math.acos(0), 0)))
-    prior_means = generate_random_points(16, 128)
+    prior_means = 10*generate_random_points(16, 128)
     np.save('prior_means', prior_means.detach().numpy())
-    model = GPCVAE(clusters=16, prior_components=prior_means, rec_var=1e-5)
+    model = GMVAE(clusters=16, prior_means=prior_means)
     model.to(device)
     train_vae(model, train_dataset, test_dataset, num_epochs=3000, M=1)
 

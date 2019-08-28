@@ -37,7 +37,7 @@ def one_hot(y, K):
 def generate_random_points(n, d):
     x = torch.randn(n, d)
     r = torch.sqrt(torch.sum(x ** 2, dim=1))
-    return 5*x / r.unsqueeze(1)
+    return x / r.unsqueeze(1)
     # x = torch.zeros(n, d)
     # for i in range(n):
         # x[i, i//2] = 1 if i % 2 == 0 else -1
