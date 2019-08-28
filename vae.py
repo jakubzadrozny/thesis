@@ -182,9 +182,9 @@ class GPCVAE(VAE):
         self.rec_var_inv = 1.0/rec_var
         self.latent = latent
         self.clusters = clusters
-        self.log_clusters = torch.log(torch.tensor(clusters, dtype=torch.float))
-        self.prior_components = prior_components.unsqueeze(1)
-        self.log_2pi = torch.log(torch.tensor(2*np.pi))
+        self.log_clusters = torch.log(torch.tensor(clusters, dtype=torch.float)).item()
+        self.log_2pi = torch.log(torch.tensor(2*np.pi)).item()
+        self.register_buffer('prior_components', prior_components.unsqueeze(1))
 
         self.sample = GMSample.apply
         self.encoder = SimplePointnetEncoder(*encoder, clusters+clusters*2*latent)
