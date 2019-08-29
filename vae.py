@@ -169,8 +169,8 @@ class GMSample(Function):
         grad_components = torch.cat((grad_mean, grad_log_sigma2), dim=2)
 
         dcdfs_dweights = weights_exp * d.cdf(expz)
-        dweights_dlogits = -weights_exp * weights.unsqueeze(1) +
-                            weights_exp * torch.eye(weights.shape[1], device=weights.device).unsqueeze(0)
+        dweights_dlogits = (-weights_exp * weights.unsqueeze(1) +
+                            weights_exp * torch.eye(weights.shape[1], device=weights.device).unsqueeze(0))
         dcdfs_dlogits = torch.matmul(dweights_dlogits, dcdfs_dweights)
         dz_dlogits = -dcdfs_dlogits / total_probs
         grad_logits = torch.matmul(dz_dlogits, grad_z.unsqueeze(2)).squeeze(2)
