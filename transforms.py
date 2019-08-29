@@ -45,7 +45,9 @@ class RandomRotation(object):
     def __call__(self, sample):
         a, b, c = np.abs(np.random.normal(scale=self.scale*np.pi, size=3))
         R = RandomRotation.get_matrix(a, b, c)
-        res = np.dot(R, sample)
+        while sample.ndim > R.ndim:
+            R = np.expand_dims(R, 0)
+        res = np.matmul(R, sample)
         return res
 
 
@@ -56,7 +58,9 @@ class SetRotation(RandomRotation):
     def __call__(self, sample):
         a, b, c = self.degrees
         R = SetRotation.get_matrix(a, b, c)
-        res = np.dot(R, sample)
+        while sample.ndim > R.ndim:
+            R = np.expand_dims(R, 0)
+        res = np.matmul(R, sample)
         return res
 
 
