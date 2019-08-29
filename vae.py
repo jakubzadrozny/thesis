@@ -150,7 +150,8 @@ class GMSample(Function):
         if not ctx.needs_input_grad[0] and not ctx.needs_input_grad[1]:
             return grad_logits, grad_components
 
-        weights_exp = F.softmax(logits, dim=1).unsqueeze(2)
+        weights = F.softmax(logits, dim=1)
+        weights_exp = weights.unsqueeze(2)
         z_mean, z_log_sigma2 = torch.chunk(components, 2, dim=2)
         z_sigma = torch.exp(0.5*z_log_sigma2)
         d = distrib.normal.Normal(z_mean, z_sigma)
