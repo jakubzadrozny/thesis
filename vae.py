@@ -2,7 +2,7 @@ import numpy as np
 
 import torch
 from torch import nn
-# from torch.autograd import Function
+from torch.autograd import Function
 import torch.nn.functional as F
 import torch.distributions as distrib
 
