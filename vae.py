@@ -134,6 +134,7 @@ class GMSample(Function):
 
     @staticmethod
     def forward(ctx, logits, components):
+        print(logits)
         idx = distrib.Categorical(logits=logits).sample().view(-1, 1, 1).expand(-1, -1, components.shape[2])
         params = torch.gather(components, 1, idx).squeeze(1)
         z_mean, z_log_sigma2 = torch.chunk(params, 2, dim=1)
