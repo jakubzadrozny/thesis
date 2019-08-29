@@ -90,9 +90,10 @@ def train_vae(model, train_dataset, test_dataset, M=1, num_epochs=1000):
 if __name__ == '__main__':
     train_dataset = JointDataset(filter=1, transform_shapenet=SetRotation((0, math.acos(0), 0)))
     test_dataset = JointDataset(filter=1, test=True, transform_shapenet=SetRotation((0, math.acos(0), 0)))
-    prior_means = 5*generate_random_points(16, 128)
+    clusters = 10
+    prior_means = generate_random_points(clusters, 128)
     np.save('prior_means', prior_means.detach().numpy())
-    model = GPCVAE(clusters=16, prior_components=prior_means)
+    model = GPCVAE(clusters=clusters, prior_components=prior_means)
     model.to(device)
     train_vae(model, train_dataset, test_dataset, num_epochs=3000, M=1)
 
