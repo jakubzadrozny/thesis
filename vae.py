@@ -133,29 +133,30 @@ class BPCVAE(VAE):
 class GMSample(Function):
 
     @staticmethod
-    def forward(ctx, weights, components):
-        idx = distrib.Categorical(probs=weights).sample().view(-1, 1, 1).expand(-1, -1, components.shape[2])
+    def forward(ctx, logits, components):
+        idx = distrib.Categorical(logits=logits).sample().view(-1, 1, 1).expand(-1, -1, components.shape[2])
         params = torch.gather(components, 1, idx).squeeze(1)
         z_mean, z_log_sigma2 = torch.chunk(params, 2, dim=1)
         z_sigma = torch.exp(0.5*z_log_sigma2)
         z = torch.normal(z_mean, z_sigma)
-        ctx.save_for_backward(weights, components, z)
+        ctx.save_for_backward(logits, components, z)
         return z
 
     @staticmethod
     def backward(ctx, grad_z):
-        weights, components, z = ctx.saved_tensors
-        grad_weights = grad_components = None
+        logits, components, z = ctx.saved_tensors
+        grad_logits = grad_components = None
 
         if not ctx.needs_input_grad[0] and not ctx.needs_input_grad[1]:
-            return grad_weights, grad_components
+            return grad_logits, grad_components
 
+        weights_exp = F.softmax(logits, dim=1).unsqueeze(2)
         z_mean, z_log_sigma2 = torch.chunk(components, 2, dim=2)
         z_sigma = torch.exp(0.5*z_log_sigma2)
         d = distrib.normal.Normal(z_mean, z_sigma)
         expz = z.unsqueeze(1).expand(-1, components.shape[1], -1)
         probs = torch.exp(d.log_prob(expz))
-        w_probs = probs * weights.unsqueeze(2)
+        w_probs = probs * weights_exp
         total_probs = torch.sum(w_probs, dim=1, keepdim=True)
 
         dz_dmean = w_probs / total_probs
@@ -167,10 +168,14 @@ class GMSample(Function):
 
         grad_components = torch.cat((grad_mean, grad_log_sigma2), dim=2)
 
-        dz_dweights = -d.cdf(expz) / total_probs
-        grad_weights = torch.matmul(dz_dweights, grad_z.unsqueeze(2)).squeeze(2)
+        dcdfs_dweights = weights_exp * d.cdf(expz)
+        dweights_dlogits = -weights_exp * weights.unsqueeze(1) +
+                            weights_exp * torch.eye(weights.shape[1], device=weights.device).unsqueeze(0)
+        dcdfs_dlogits = torch.matmul(dweights_dlogits, dcdfs_dweights)
+        dz_dlogits = -dcdfs_dlogits / total_probs
+        grad_logits = torch.matmul(dz_dlogits, grad_z.unsqueeze(2)).squeeze(2)
 
-        return grad_weights, grad_components
+        return grad_logits, grad_components
 
 
 class GPCVAE(VAE):
@@ -193,10 +198,9 @@ class GPCVAE(VAE):
     def encode(self, x):
         x = self.encoder(x)
         logits, components = torch.split(x, [self.clusters, self.clusters*2*self.latent], dim=1)
-        log_weights = F.log_softmax(logits, dim=1)
         components = components.reshape(x.shape[0], -1, 2*self.latent)
-        z = self.sample(torch.exp(log_weights), components)
-        return z, log_weights, components
+        z = self.sample(logits, components)
+        return z, logits, components
 
     def rec_loss(self, x, rec):
         return self.rec_var_inv*torch.mean(cd(rec, x))
