@@ -18,3 +18,9 @@ report/*
 renderer.py
 render1.py
 render2.py
+
+# Temp images
+*.png
+
+# Backup files
+old_*
