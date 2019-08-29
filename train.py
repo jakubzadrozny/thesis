@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 
 from datasets import JointDataset
 from transforms import SetRotation
-from vae import NPCVAE, BPCVAE, AE
+from vae import NPCVAE, BPCVAE, AE, GPCVAE
 from gmvae import GMVAE
 from eval import loss_on_loader
 from modelutils import generate_random_points
@@ -92,7 +92,7 @@ if __name__ == '__main__':
     test_dataset = JointDataset(filter=1, test=True, transform_shapenet=SetRotation((0, math.acos(0), 0)))
     prior_means = 5*generate_random_points(16, 128)
     np.save('prior_means', prior_means.detach().numpy())
-    model = GMVAE(clusters=16, prior_means=prior_means)
+    model = GPCVAE(clusters=16, prior_means=prior_means)
     model.to(device)
     train_vae(model, train_dataset, test_dataset, num_epochs=3000, M=1)
 
