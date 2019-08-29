@@ -93,7 +93,7 @@ if __name__ == '__main__':
     clusters = 10
     prior_means = generate_random_points(clusters, 128)
     np.save('prior_means', prior_means.detach().numpy())
-    model = GPCVAE(clusters=clusters, prior_components=prior_means)
+    model = GMVAE(clusters=clusters, prior_means=prior_means)
     model.to(device)
     train_vae(model, train_dataset, test_dataset, num_epochs=3000, M=1)
 
