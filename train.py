@@ -80,8 +80,8 @@ def train_vae(model, train_dataset, test_dataset, M=1, num_epochs=1000):
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4, drop_last=True)
     test_loader = DataLoader(test_dataset, batch_size=32, num_workers=4, drop_last=True)
 
-    optimizer = Adam(model.parameters(), lr=2e-4)
-    scheduler = StepLR(optimizer, step_size=500, gamma=0.5)
+    optimizer = Adam(model.parameters(), lr=1e-3)
+    scheduler = StepLR(optimizer, step_size=200, gamma=0.5)
 
     train_unsupervised(model, optimizer, scheduler, train_loader, test_loader,
                        M=M, num_epochs=num_epochs)
@@ -90,12 +90,12 @@ def train_vae(model, train_dataset, test_dataset, M=1, num_epochs=1000):
 if __name__ == '__main__':
     train_dataset = JointDataset(filter=1, transform_shapenet=SetRotation((0, math.acos(0), 0)))
     test_dataset = JointDataset(filter=1, test=True, transform_shapenet=SetRotation((0, math.acos(0), 0)))
-    clusters = 10
-    prior_means = 10*generate_random_points(clusters, 128)
+    clusters = 32
+    prior_means = 5*generate_random_points(clusters, 128)
     np.save('prior_means', prior_means.detach().numpy())
-    model = GMVAE(clusters=clusters, prior_means=prior_means, rec_var=1e-1)
+    model = GMVAE(clusters=clusters, prior_means=prior_means, rec_var=0.02)
     model.to(device)
-    train_vae(model, train_dataset, test_dataset, num_epochs=3000, M=1)
+    train_vae(model, train_dataset, test_dataset, num_epochs=1000, M=1)
 
 
 # def train_m2(model, train_dataset, drop_labels=0.0, log_every=200):

@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
+import torch.distributions as distrib
 
 from datasets import PC_OUT_DIM
 from modelutils import (SoloPointnetEncoder, SimplePointnetEncoder,
@@ -22,12 +23,17 @@ class GMVAE(SaveableModule):
         self.lat_encoder = prep_seq(1024+clusters, *encoder, 2*latent, bnorm=True)
         self.decoder = prep_seq(latent, *decoder, PC_OUT_DIM)
         self.register_buffer('means', prior_means)
-        # self.components = prep_seq(clusters, 256, 2*latent)
 
     def sample(self, z_mean, z_log_sigma2):
         z_sigma = torch.exp(0.5 * z_log_sigma2)
         epsilon = torch.randn_like(z_mean)
         return epsilon*z_sigma + z_mean
+
+    def predict(self, x):
+        feats = self.pointnet(x)
+        log_prob_y = self.cat_encoder(feats)
+        prob_y = torch.exp(log_prob_y)
+        return torch.max(prob_y, dim=1)
 
     def encode_z(self, y, feats):
         params = self.lat_encoder(torch.cat((y, feats), dim=1))
@@ -35,9 +41,19 @@ class GMVAE(SaveableModule):
         z = self.sample(z_mean, z_log_sigma2)
         return z, z_mean, z_log_sigma2
 
-    # def get_components(self, y):
-        # params = self.components(y)
-        # return torch.chunk(params, 2, dim=1)
+    def encode(self, x):
+        feats = self.pointnet(x)
+        log_prob_y = self.cat_encoder(feats)
+        prob_y = torch.exp(log_prob_y)
+        y_dis = distrib.Categorical(probs=prob_y).sample()
+        y = one_hot(y_dis, self.clusters).to(x.device)
+        z, _, _ = self.encode_z(y, feats)
+        return y, z
+
+    def forward(self, x):
+        y, z = self.encode(x)
+        rec = self.decoder(x).view(x.shape)
+        return y, z, rec
 
     def rec_loss(self, x, rec):
         return self.rec_var_inv*cd(x, rec)
@@ -45,7 +61,6 @@ class GMVAE(SaveableModule):
     def elbo_for_y(self, x, y, feats, M=1):
         _, z_mean, z_log_sigma2 = self.encode_z(y, feats)
         target_mean = self.means[torch.nonzero(y)[0,1]]
-        # components_mean, components_log_sigma2 = self.get_components(y)
 
         KL_loss = 0.5*torch.sum(
             - 1.0
@@ -54,7 +69,7 @@ class GMVAE(SaveableModule):
             + ((target_mean-z_mean) ** 2)
         , dim=1)
 
-        y_penalty = torch.full_like(KL_loss, -torch.log(torch.tensor(1/self.clusters)), device=KL_loss.device)
+        # y_penalty = torch.full_like(KL_loss, -torch.log(torch.tensor(1/self.clusters)), device=KL_loss.device)
 
         rec_loss = torch.zeros_like(KL_loss, device=KL_loss.device)
         for i in range(M):
@@ -63,7 +78,7 @@ class GMVAE(SaveableModule):
             rec_loss += self.rec_loss(x, rec)
         rec_loss /= M
 
-        return rec_loss + KL_loss + y_penalty
+        return rec_loss + KL_loss
 
     def elbo_loss(self, x, M=1):
         feats = self.pointnet(x)
