@@ -5,22 +5,18 @@ trained/
 # Cache
 __pycache__/
 
-# Notebooks
+# Notebook garbage
 .ipynb_checkpoints/
-*.ipynb
 
 # Report stuff
 *.npy
 report/*
-!report/report.tex
-
-# Renderers
-renderer.py
-render1.py
-render2.py
 
 # Temp images
 *.png
 
 # Backup files
 old_*
+
+# Unused stuff
+m2.py
